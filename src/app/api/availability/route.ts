@@ -1,19 +1,7 @@
+// src/app/api/availability/route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { addDays, format, isBefore, isToday, startOfDay } from 'date-fns'
-
-interface AvailabilitySlot {
-    id: string
-    serviceId: string
-    dayOfWeek: number
-    startTime: string
-    endTime: string
-    isAvailable: boolean
-}
-
-interface ExistingAppointment {
-    scheduledDatetime: Date
-}
 
 export async function GET(request: Request) {
     try {
@@ -47,7 +35,7 @@ export async function GET(request: Request) {
         }
 
         // Get availability slots for the service
-        const availabilitySlots: AvailabilitySlot[] = await prisma.availabilitySlot.findMany({
+        const availabilitySlots = await prisma.availabilitySlot.findMany({
             where: {
                 serviceId: serviceId,
                 isAvailable: true
@@ -59,7 +47,7 @@ export async function GET(request: Request) {
         })
 
         // Get existing appointments to check conflicts
-        const existingAppointments: ExistingAppointment[] = await prisma.appointment.findMany({
+        const existingAppointments = await prisma.appointment.findMany({
             where: {
                 serviceId: serviceId,
                 scheduledDatetime: {
@@ -93,23 +81,31 @@ export async function GET(request: Request) {
             const dateStr = format(currentDate, 'yyyy-MM-dd')
 
             // Find slots for this day of week
-            const daySlots = availabilitySlots.filter((slot: AvailabilitySlot) => slot.dayOfWeek === dayOfWeek)
+            const daySlots = availabilitySlots.filter((slot: { dayOfWeek: number }) => slot.dayOfWeek === dayOfWeek)
 
-            const slots = daySlots.map((slot: AvailabilitySlot) => {
+            const slots = daySlots.map((slot: {
+                startTime: string | Date
+                dayOfWeek: number
+            }) => {
+                // Convert the time to string format if it's a Date object
+                const timeString = typeof slot.startTime === 'string'
+                    ? slot.startTime
+                    : slot.startTime.toTimeString().slice(0, 8)
+
                 // Create full datetime for this slot
-                const slotDateTime = new Date(`${dateStr}T${slot.startTime}`)
+                const slotDateTime = new Date(`${dateStr}T${timeString}`)
 
                 // Check if slot is in the past (for today only)
                 const isPastSlot = isToday(currentDate) && isBefore(slotDateTime, new Date())
 
                 // Check if slot conflicts with existing appointment
-                const hasConflict = existingAppointments.some((appointment: ExistingAppointment) => {
+                const hasConflict = existingAppointments.some((appointment: { scheduledDatetime: Date }) => {
                     const appointmentTime = appointment.scheduledDatetime
                     return format(appointmentTime, 'yyyy-MM-dd HH:mm:ss') === format(slotDateTime, 'yyyy-MM-dd HH:mm:ss')
                 })
 
                 return {
-                    time: slot.startTime,
+                    time: timeString,
                     available: !isPastSlot && !hasConflict
                 }
             })

@@ -1,20 +1,23 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 
-interface RouteParams {
-    params: Promise<{ id: string }>
-}
-
 export async function GET(
     request: Request,
-    context: RouteParams
+    { params }: { params: { id: string } }
 ) {
     try {
-        const { id } = await context.params
+        const serviceId = params.id
+
+        if (!serviceId) {
+            return NextResponse.json(
+                { error: 'Service ID is required' },
+                { status: 400 }
+            )
+        }
 
         const bodyParts = await prisma.bodyPart.findMany({
             where: {
-                serviceId: id,
+                serviceId: serviceId,
                 active: true
             },
             orderBy: { name: 'asc' }
@@ -22,7 +25,7 @@ export async function GET(
 
         return NextResponse.json(bodyParts)
     } catch (error) {
-        console.error('Error fetching body parts:', error)
+        console.error(`Error fetching body parts for service ${params.id}:`, error)
         return NextResponse.json(
             { error: 'Failed to fetch body parts' },
             { status: 500 }

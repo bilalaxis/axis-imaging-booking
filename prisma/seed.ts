@@ -5,13 +5,12 @@ const prisma = new PrismaClient()
 async function main() {
     console.log('🌱 Seeding database...')
 
-    // Clear existing data in correct order
-    await prisma.hl7Message.deleteMany()
+    // Clean up existing data to ensure a fresh seed
     await prisma.appointment.deleteMany()
     await prisma.availabilitySlot.deleteMany()
+    await prisma.patient.deleteMany()
     await prisma.bodyPart.deleteMany()
     await prisma.service.deleteMany()
-
     console.log('✅ Cleared existing data')
 
     // Create Services
@@ -19,21 +18,19 @@ async function main() {
         data: {
             name: 'CT Scan',
             code: 'CT',
-            category: 'computed_tomography',
-            description: 'Computed Tomography imaging using X-rays to create detailed cross-sectional images',
+            category: 'CT',
             durationMinutes: 30,
-            active: true,
+            description: 'A computed tomography (CT) scan combines a series of X-ray images taken from different angles around your body and uses computer processing to create cross-sectional images (slices) of the bones, blood vessels and soft tissues inside your body.',
         },
     })
 
     const xrayService = await prisma.service.create({
         data: {
             name: 'X-Ray',
-            code: 'XR',
-            category: 'general_radiology',
-            description: 'Standard radiographic imaging using electromagnetic radiation',
+            code: 'XRAY',
+            category: 'XRAY',
             durationMinutes: 15,
-            active: true,
+            description: 'An X-ray is a quick, painless test that produces images of the structures inside your body — particularly your bones.',
         },
     })
 
@@ -62,61 +59,18 @@ async function main() {
     console.log('✅ Created services')
 
     // Create Body Parts for CT Scan
-    const ctBodyParts = [
-        {
-            name: 'Abdomen & Pelvis',
-            preparationText: `Please ensure you fast for two hours prior to your procedure.
-
-Additional Requirements:
-- Please arrive 15 minutes prior to your appointment time if you have any presence of kidney disease, diabetes or are taking Metformin, please bring copies of all your recent (within the last 3 months) blood test to your appointment.
-- You do not need to hold your bladder and can continue with medication as normal.
-- Drink 1 litre of water, 1 hour prior to your appointment time.`,
-        },
-        {
-            name: 'Chest',
-            preparationText: `No special preparation required.
-
-Instructions:
-- Please arrive 15 minutes prior to your appointment time.
-- Wear comfortable clothing without metal fasteners.
-- Remove all jewelry and metal objects from the chest area.`,
-        },
-        {
-            name: 'Head',
-            preparationText: `No special preparation required.
-
-Instructions:
-- Please arrive 15 minutes prior to your appointment time.
-- Remove all jewelry, hairpins, and metal objects from the head and neck area.`,
-        },
-        {
-            name: 'Spine',
-            preparationText: `No special preparation required.
-
-Instructions:
-- Please arrive 15 minutes prior to your appointment time.
-- Wear comfortable clothing without metal fasteners along the spine.`,
-        },
-        {
-            name: 'Limbs',
-            preparationText: `No special preparation required.
-
-Instructions:
-- Please arrive 15 minutes prior to your appointment time.
-- Remove jewelry and metal objects from the area being scanned.`,
-        },
-    ]
-
-    for (const bodyPart of ctBodyParts) {
-        await prisma.bodyPart.create({
-            data: {
-                name: bodyPart.name,
+    await prisma.bodyPart.createMany({
+        data: [
+            {
+                name: 'Abdomen & Pelvis',
                 serviceId: ctService.id,
-                preparationText: bodyPart.preparationText,
-                active: true,
+                preparationText: 'Please ensure you fast for two hours prior to your procedure. Drink 1 litre of water, 1 hour prior to your appointment time. You do not need to hold your bladder and can continue with medication as normal.',
             },
-        })
-    }
+            { name: 'Chest', serviceId: ctService.id, preparationText: 'No special preparation required.' },
+            { name: 'Ankle/s', serviceId: xrayService.id, preparationText: 'No special preparation required.' },
+            { name: 'Knee', serviceId: xrayService.id, preparationText: 'No special preparation required.' },
+        ],
+    })
 
     // Create Body Parts for X-Ray
     const xrayBodyParts = [
@@ -271,104 +225,7 @@ Instructions:
 
     console.log('✅ Created body parts')
 
-    // Create Availability Slots for the next 30 days (Monday to Friday, 8 AM to 5 PM)
-    const timeSlots = [
-        { start: '08:00:00', end: '08:30:00' },
-        { start: '08:30:00', end: '09:00:00' },
-        { start: '09:00:00', end: '09:30:00' },
-        { start: '09:30:00', end: '10:00:00' },
-        { start: '10:00:00', end: '10:30:00' },
-        { start: '10:30:00', end: '11:00:00' },
-        { start: '11:00:00', end: '11:30:00' },
-        { start: '11:30:00', end: '12:00:00' },
-        { start: '13:00:00', end: '13:30:00' }, // Lunch break 12-1 PM
-        { start: '13:30:00', end: '14:00:00' },
-        { start: '14:00:00', end: '14:30:00' },
-        { start: '14:30:00', end: '15:00:00' },
-        { start: '15:00:00', end: '15:30:00' },
-        { start: '15:30:00', end: '16:00:00' },
-        { start: '16:00:00', end: '16:30:00' },
-        { start: '16:30:00', end: '17:00:00' },
-    ]
-
-    const services = [ctService, xrayService, dexaService, ultrasoundService]
-    let slotsCreated = 0
-
-    // Create availability for Monday to Friday (1-5)
-    for (const service of services) {
-        for (let dayOfWeek = 1; dayOfWeek <= 5; dayOfWeek++) {
-            for (const slot of timeSlots) {
-                // X-Ray gets more frequent slots due to shorter duration
-                if (service.category === 'general_radiology') {
-                    const xraySlots = [
-                        { start: '08:00:00', end: '08:15:00' },
-                        { start: '08:15:00', end: '08:30:00' },
-                        { start: '08:30:00', end: '08:45:00' },
-                        { start: '08:45:00', end: '09:00:00' },
-                        { start: '09:00:00', end: '09:15:00' },
-                        { start: '09:15:00', end: '09:30:00' },
-                        { start: '09:30:00', end: '09:45:00' },
-                        { start: '09:45:00', end: '10:00:00' },
-                        { start: '10:00:00', end: '10:15:00' },
-                        { start: '10:15:00', end: '10:30:00' },
-                        { start: '10:30:00', end: '10:45:00' },
-                        { start: '10:45:00', end: '11:00:00' },
-                        { start: '11:00:00', end: '11:15:00' },
-                        { start: '11:15:00', end: '11:30:00' },
-                        { start: '11:30:00', end: '11:45:00' },
-                        { start: '11:45:00', end: '12:00:00' },
-                        { start: '13:00:00', end: '13:15:00' },
-                        { start: '13:15:00', end: '13:30:00' },
-                        { start: '13:30:00', end: '13:45:00' },
-                        { start: '13:45:00', end: '14:00:00' },
-                        { start: '14:00:00', end: '14:15:00' },
-                        { start: '14:15:00', end: '14:30:00' },
-                        { start: '14:30:00', end: '14:45:00' },
-                        { start: '14:45:00', end: '15:00:00' },
-                        { start: '15:00:00', end: '15:15:00' },
-                        { start: '15:15:00', end: '15:30:00' },
-                        { start: '15:30:00', end: '15:45:00' },
-                        { start: '15:45:00', end: '16:00:00' },
-                        { start: '16:00:00', end: '16:15:00' },
-                        { start: '16:15:00', end: '16:30:00' },
-                        { start: '16:30:00', end: '16:45:00' },
-                        { start: '16:45:00', end: '17:00:00' },
-                    ]
-
-                    for (const xraySlot of xraySlots) {
-                        await prisma.availabilitySlot.create({
-                            data: {
-                                serviceId: service.id,
-                                dayOfWeek,
-                                startTime: new Date(`1970-01-01T${xraySlot.start}`),
-                                endTime: new Date(`1970-01-01T${xraySlot.end}`),
-                                isAvailable: true,
-                            },
-                        })
-                        slotsCreated++
-                    }
-                } else {
-                    await prisma.availabilitySlot.create({
-                        data: {
-                            serviceId: service.id,
-                            dayOfWeek,
-                            startTime: new Date(`1970-01-01T${slot.start}`),
-                            endTime: new Date(`1970-01-01T${slot.end}`),
-                            isAvailable: true,
-                        },
-                    })
-                    slotsCreated++
-                }
-            }
-        }
-    }
-
-    console.log('✅ Created availability slots')
-    console.log('🎉 Database seeded successfully!')
-    console.log(`Created:`)
-    console.log(`- ${services.length} services`)
-    console.log(`- ${ctBodyParts.length + xrayBodyParts.length + dexaBodyParts.length + ultrasoundBodyParts.length} body parts`)
-    console.log(`- ${slotsCreated} availability slots for weekdays`)
+    console.log('✅ Database seeded successfully!')
 }
 
 main()

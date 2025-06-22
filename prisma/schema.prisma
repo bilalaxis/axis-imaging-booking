@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_PRISMA_URL")
+}
+
+model Service {
+  id               String     @id @default(uuid())
+  name             String     @db.VarChar(100)
+  code             String     @unique @db.VarChar(20)
+  category         String     @db.VarChar(50) // 'CT', 'XRAY', 'DEXA', 'ULTRASOUND'
+  description      String?
+  durationMinutes  Int        @default(30) @map("duration_minutes")
+  active           Boolean    @default(true)
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+  
+  bodyParts        BodyPart[]
+  appointments     Appointment[]
+  availabilitySlots AvailabilitySlot[]
+  
+  @@map("services")
+}
+
+model BodyPart {
+  id              String    @id @default(uuid())
+  name            String    @db.VarChar(100)
+  serviceId       String    @map("service_id")
+  preparationText String?   @map("preparation_text")
+  active          Boolean   @default(true)
+  
+  service         Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  appointments    Appointment[]
+  
+  @@map("body_parts")
+}
+
+model Appointment {
+  id                    String    @id @default(uuid())
+  voyagerAppointmentId  String?   @unique @map("voyager_appointment_id") @db.VarChar(50)
+  firstName             String    @map("first_name") @db.VarChar(100)
+  lastName              String    @map("last_name") @db.VarChar(100)
+  dateOfBirth           DateTime  @map("date_of_birth") @db.Date
+  email                 String?   @db.VarChar(255)
+  mobile                String?   @db.VarChar(20)
+  serviceId             String    @map("service_id")
+  bodyPartId            String    @map("body_part_id")
+  scheduledDatetime     DateTime  @map("scheduled_datetime")
+  status                String    @default("pending") @db.VarChar(20) // 'pending', 'confirmed', 'cancelled'
+  referralUrl           String?   @map("referral_url") @db.VarChar(500)
+  notes                 String?
+  hl7MessageId          String?   @map("hl7_message_id") @db.VarChar(100)
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  
+  service               Service   @relation(fields: [serviceId], references: [id])
+  bodyPart              BodyPart  @relation(fields: [bodyPartId], references: [id])
+  
+  @@map("appointments")
+}
+
+model AvailabilitySlot {
+  id          String   @id @default(uuid())
+  serviceId   String   @map("service_id")
+  dayOfWeek   Int      @map("day_of_week") // 0 = Sunday, 1 = Monday, etc.
+  startTime   DateTime @map("start_time") @db.Time
+  endTime     DateTime @map("end_time") @db.Time
+  isAvailable Boolean  @default(true) @map("is_available")
+  
+  service     Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  
+  @@map("availability_slots")
+}
+
+model Hl7Message {
+  id            String    @id @default(uuid())
+  messageId     String    @unique @map("message_id") @db.VarChar(100)
+  messageType   String    @map("message_type") @db.VarChar(20)
+  content       String
+  status        String    @default("pending") @db.VarChar(20) // 'pending', 'sent', 'acknowledged', 'failed'
+  appointmentId String?   @map("appointment_id")
+  retryCount    Int       @default(0) @map("retry_count")
+  lastRetry     DateTime? @map("last_retry")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  @@map("hl7_messages")
+}

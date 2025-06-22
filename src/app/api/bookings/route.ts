@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { bookingSchema } from '@/lib/validations/booking'
-import { v4 as uuidv4 } from 'uuid'
 
 export async function POST(request: Request) {
     try {
@@ -66,7 +65,8 @@ export async function POST(request: Request) {
     } catch (error) {
         console.error('Error creating booking:', error)
 
-        if (error instanceof Error && 'issues' in error) {
+        // Type assertion for Zod validation errors
+        if (error && typeof error === 'object' && 'issues' in error) {
             return NextResponse.json(
                 { error: 'Validation failed', details: error },
                 { status: 400 }

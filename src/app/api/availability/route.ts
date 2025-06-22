@@ -1,6 +1,19 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { addDays, format, isAfter, isBefore, isToday, parse, startOfDay } from 'date-fns'
+import { addDays, format, isBefore, isToday, startOfDay } from 'date-fns'
+
+interface AvailabilitySlot {
+    id: string
+    serviceId: string
+    dayOfWeek: number
+    startTime: string
+    endTime: string
+    isAvailable: boolean
+}
+
+interface ExistingAppointment {
+    scheduledDatetime: Date
+}
 
 export async function GET(request: Request) {
     try {
@@ -34,7 +47,7 @@ export async function GET(request: Request) {
         }
 
         // Get availability slots for the service
-        const availabilitySlots = await prisma.availabilitySlot.findMany({
+        const availabilitySlots: AvailabilitySlot[] = await prisma.availabilitySlot.findMany({
             where: {
                 serviceId: serviceId,
                 isAvailable: true
@@ -46,7 +59,7 @@ export async function GET(request: Request) {
         })
 
         // Get existing appointments to check conflicts
-        const existingAppointments = await prisma.appointment.findMany({
+        const existingAppointments: ExistingAppointment[] = await prisma.appointment.findMany({
             where: {
                 serviceId: serviceId,
                 scheduledDatetime: {
@@ -63,29 +76,34 @@ export async function GET(request: Request) {
         })
 
         // Generate available slots for the date range
-        const availableSlots: { date: string; slots: { time: string; available: boolean }[] }[] = []
+        const availableSlots: {
+            date: string
+            slots: { time: string; available: boolean }[]
+        }[] = []
 
-        for (let date = fromDate; isBefore(date, toDate) || format(date, 'yyyy-MM-dd') === format(toDate, 'yyyy-MM-dd'); date = addDays(date, 1)) {
+        let currentDate = fromDate
+        while (isBefore(currentDate, toDate) || format(currentDate, 'yyyy-MM-dd') === format(toDate, 'yyyy-MM-dd')) {
             // Skip past dates (except today)
-            if (isBefore(date, startOfDay(new Date())) && !isToday(date)) {
+            if (isBefore(currentDate, startOfDay(new Date())) && !isToday(currentDate)) {
+                currentDate = addDays(currentDate, 1)
                 continue
             }
 
-            const dayOfWeek = date.getDay()
-            const dateStr = format(date, 'yyyy-MM-dd')
+            const dayOfWeek = currentDate.getDay()
+            const dateStr = format(currentDate, 'yyyy-MM-dd')
 
             // Find slots for this day of week
-            const daySlots = availabilitySlots.filter((slot: any) => slot.dayOfWeek === dayOfWeek)
+            const daySlots = availabilitySlots.filter((slot: AvailabilitySlot) => slot.dayOfWeek === dayOfWeek)
 
-            const slots = daySlots.map((slot: any) => {
+            const slots = daySlots.map((slot: AvailabilitySlot) => {
                 // Create full datetime for this slot
                 const slotDateTime = new Date(`${dateStr}T${slot.startTime}`)
 
                 // Check if slot is in the past (for today only)
-                const isPastSlot = isToday(date) && isBefore(slotDateTime, new Date())
+                const isPastSlot = isToday(currentDate) && isBefore(slotDateTime, new Date())
 
                 // Check if slot conflicts with existing appointment
-                const hasConflict = existingAppointments.some((appointment: any) => {
+                const hasConflict = existingAppointments.some((appointment: ExistingAppointment) => {
                     const appointmentTime = appointment.scheduledDatetime
                     return format(appointmentTime, 'yyyy-MM-dd HH:mm:ss') === format(slotDateTime, 'yyyy-MM-dd HH:mm:ss')
                 })
@@ -102,6 +120,8 @@ export async function GET(request: Request) {
                     slots
                 })
             }
+
+            currentDate = addDays(currentDate, 1)
         }
 
         return NextResponse.json({

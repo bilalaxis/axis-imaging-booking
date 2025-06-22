@@ -5,19 +5,21 @@ const prisma = new PrismaClient()
 async function main() {
     console.log('🌱 Seeding database...')
 
-    // Clear existing data
+    // Clear existing data in correct order
     await prisma.hl7Message.deleteMany()
     await prisma.appointment.deleteMany()
     await prisma.availabilitySlot.deleteMany()
     await prisma.bodyPart.deleteMany()
     await prisma.service.deleteMany()
 
+    console.log('✅ Cleared existing data')
+
     // Create Services
     const ctService = await prisma.service.create({
         data: {
             name: 'CT Scan',
             code: 'CT',
-            category: 'CT',
+            category: 'computed_tomography',
             description: 'Computed Tomography imaging using X-rays to create detailed cross-sectional images',
             durationMinutes: 30,
             active: true,
@@ -28,7 +30,7 @@ async function main() {
         data: {
             name: 'X-Ray',
             code: 'XR',
-            category: 'XRAY',
+            category: 'general_radiology',
             description: 'Standard radiographic imaging using electromagnetic radiation',
             durationMinutes: 15,
             active: true,
@@ -39,7 +41,7 @@ async function main() {
         data: {
             name: 'DEXA Scan',
             code: 'DXA',
-            category: 'DEXA',
+            category: 'bone_density',
             description: 'Dual-energy X-ray absorptiometry for bone density measurement',
             durationMinutes: 20,
             active: true,
@@ -50,12 +52,14 @@ async function main() {
         data: {
             name: 'Ultrasound',
             code: 'US',
-            category: 'ULTRASOUND',
+            category: 'ultrasound',
             description: 'Medical imaging using high-frequency sound waves',
             durationMinutes: 30,
             active: true,
         },
     })
+
+    console.log('✅ Created services')
 
     // Create Body Parts for CT Scan
     const ctBodyParts = [
@@ -106,8 +110,9 @@ Instructions:
     for (const bodyPart of ctBodyParts) {
         await prisma.bodyPart.create({
             data: {
-                ...bodyPart,
+                name: bodyPart.name,
                 serviceId: ctService.id,
+                preparationText: bodyPart.preparationText,
                 active: true,
             },
         })
@@ -160,8 +165,9 @@ Instructions:
     for (const bodyPart of xrayBodyParts) {
         await prisma.bodyPart.create({
             data: {
-                ...bodyPart,
+                name: bodyPart.name,
                 serviceId: xrayService.id,
+                preparationText: bodyPart.preparationText,
                 active: true,
             },
         })
@@ -204,8 +210,9 @@ Instructions:
     for (const bodyPart of dexaBodyParts) {
         await prisma.bodyPart.create({
             data: {
-                ...bodyPart,
+                name: bodyPart.name,
                 serviceId: dexaService.id,
+                preparationText: bodyPart.preparationText,
                 active: true,
             },
         })
@@ -254,14 +261,17 @@ Instructions:
     for (const bodyPart of ultrasoundBodyParts) {
         await prisma.bodyPart.create({
             data: {
-                ...bodyPart,
+                name: bodyPart.name,
                 serviceId: ultrasoundService.id,
+                preparationText: bodyPart.preparationText,
                 active: true,
             },
         })
     }
 
-    // Create Availability Slots (Monday to Friday, 8 AM to 5 PM)
+    console.log('✅ Created body parts')
+
+    // Create Availability Slots for the next 30 days (Monday to Friday, 8 AM to 5 PM)
     const timeSlots = [
         { start: '08:00:00', end: '08:30:00' },
         { start: '08:30:00', end: '09:00:00' },
@@ -282,19 +292,47 @@ Instructions:
     ]
 
     const services = [ctService, xrayService, dexaService, ultrasoundService]
+    let slotsCreated = 0
 
     // Create availability for Monday to Friday (1-5)
     for (const service of services) {
         for (let dayOfWeek = 1; dayOfWeek <= 5; dayOfWeek++) {
             for (const slot of timeSlots) {
                 // X-Ray gets more frequent slots due to shorter duration
-                if (service.category === 'XRAY') {
+                if (service.category === 'general_radiology') {
                     const xraySlots = [
                         { start: '08:00:00', end: '08:15:00' },
                         { start: '08:15:00', end: '08:30:00' },
                         { start: '08:30:00', end: '08:45:00' },
                         { start: '08:45:00', end: '09:00:00' },
-                        // Add more 15-minute slots...
+                        { start: '09:00:00', end: '09:15:00' },
+                        { start: '09:15:00', end: '09:30:00' },
+                        { start: '09:30:00', end: '09:45:00' },
+                        { start: '09:45:00', end: '10:00:00' },
+                        { start: '10:00:00', end: '10:15:00' },
+                        { start: '10:15:00', end: '10:30:00' },
+                        { start: '10:30:00', end: '10:45:00' },
+                        { start: '10:45:00', end: '11:00:00' },
+                        { start: '11:00:00', end: '11:15:00' },
+                        { start: '11:15:00', end: '11:30:00' },
+                        { start: '11:30:00', end: '11:45:00' },
+                        { start: '11:45:00', end: '12:00:00' },
+                        { start: '13:00:00', end: '13:15:00' },
+                        { start: '13:15:00', end: '13:30:00' },
+                        { start: '13:30:00', end: '13:45:00' },
+                        { start: '13:45:00', end: '14:00:00' },
+                        { start: '14:00:00', end: '14:15:00' },
+                        { start: '14:15:00', end: '14:30:00' },
+                        { start: '14:30:00', end: '14:45:00' },
+                        { start: '14:45:00', end: '15:00:00' },
+                        { start: '15:00:00', end: '15:15:00' },
+                        { start: '15:15:00', end: '15:30:00' },
+                        { start: '15:30:00', end: '15:45:00' },
+                        { start: '15:45:00', end: '16:00:00' },
+                        { start: '16:00:00', end: '16:15:00' },
+                        { start: '16:15:00', end: '16:30:00' },
+                        { start: '16:30:00', end: '16:45:00' },
+                        { start: '16:45:00', end: '17:00:00' },
                     ]
 
                     for (const xraySlot of xraySlots) {
@@ -302,37 +340,40 @@ Instructions:
                             data: {
                                 serviceId: service.id,
                                 dayOfWeek,
-                                startTime: xraySlot.start,
-                                endTime: xraySlot.end,
+                                startTime: new Date(`1970-01-01T${xraySlot.start}`),
+                                endTime: new Date(`1970-01-01T${xraySlot.end}`),
                                 isAvailable: true,
                             },
                         })
+                        slotsCreated++
                     }
                 } else {
                     await prisma.availabilitySlot.create({
                         data: {
                             serviceId: service.id,
                             dayOfWeek,
-                            startTime: slot.start,
-                            endTime: slot.end,
+                            startTime: new Date(`1970-01-01T${slot.start}`),
+                            endTime: new Date(`1970-01-01T${slot.end}`),
                             isAvailable: true,
                         },
                     })
+                    slotsCreated++
                 }
             }
         }
     }
 
-    console.log('✅ Database seeded successfully!')
+    console.log('✅ Created availability slots')
+    console.log('🎉 Database seeded successfully!')
     console.log(`Created:`)
     console.log(`- ${services.length} services`)
     console.log(`- ${ctBodyParts.length + xrayBodyParts.length + dexaBodyParts.length + ultrasoundBodyParts.length} body parts`)
-    console.log(`- Availability slots for weekdays`)
+    console.log(`- ${slotsCreated} availability slots for weekdays`)
 }
 
 main()
     .catch((e) => {
-        console.error(e)
+        console.error('❌ Seeding error:', e)
         process.exit(1)
     })
     .finally(async () => {

@@ -1,7 +1,6 @@
 // Define custom output path for generated Prisma Client
 generator client {
   provider = "prisma-client-js"
-  output   = "/app/generated/prisma-client"
 }
 
 // Define database connection via the `DATABASE_URL` env var

@@ -1,14 +1,20 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 
+interface RouteParams {
+    params: Promise<{ id: string }>
+}
+
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
+    context: RouteParams
 ) {
     try {
+        const { id } = await context.params
+
         const bodyParts = await prisma.bodyPart.findMany({
             where: {
-                serviceId: params.id,
+                serviceId: id,
                 active: true
             },
             orderBy: { name: 'asc' }

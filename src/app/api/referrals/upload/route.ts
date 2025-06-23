@@ -6,6 +6,15 @@ const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/jpg', 'application
 
 export async function POST(request: Request) {
     try {
+        // Validate blob storage configuration
+        if (!process.env.BLOB_READ_WRITE_TOKEN) {
+            console.error('BLOB_READ_WRITE_TOKEN environment variable is not configured')
+            return NextResponse.json(
+                { error: 'File upload service is not configured' },
+                { status: 500 }
+            )
+        }
+
         const formData = await request.formData()
         const file = formData.get('file') as File
 

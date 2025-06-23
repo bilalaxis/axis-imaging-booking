@@ -6,6 +6,12 @@ import { format, parseISO } from 'date-fns';
 import { PatientDetailsForm } from '@/components/ui/patient-details-form';
 import { PatientDetailsForm as PatientDetailsFormData } from '@/lib/validations/booking';
 import { Button } from '@/components/ui/button';
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from "@/components/ui/accordion";
 
 // Type definitions
 interface Service {
@@ -189,7 +195,7 @@ const AxisBookingForm = () => {
                 <p className="text-xl text-gray-600">Select your medical imaging scan</p>
             </div>
 
-            <div className="space-y-6 bg-white p-8 rounded-lg shadow">
+            <div className="space-y-6 bg-white p-8 rounded-lg shadow mb-12">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">What service do you need?</label>
                     <div className="relative">
@@ -230,6 +236,31 @@ const AxisBookingForm = () => {
                     </div>
                 )}
             </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-12">
+                <Accordion type="single" collapsible>
+                    <AccordionItem value="item-1" className="border-b-0">
+                        <AccordionTrigger className="text-blue-800 font-medium flex items-center hover:no-underline">
+                            What if I can&apos;t find my scan in the service list?
+                        </AccordionTrigger>
+                        <AccordionContent className="text-blue-700 pt-2">
+                            If you can&apos;t find your scan in the service list or are uncertain, please contact us directly at <span className="font-medium">(03) 9123 4567</span> or email <span className="font-medium">bookings@axisimaging.com.au</span> to discuss your specific requirements.
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-6">
+                <h2 className="text-2xl font-bold text-blue-900 mb-4">Book now for seamless care when you need it most</h2>
+                <p className="text-gray-700 mb-4">
+                    Scheduling your radiology appointment online with Axis Imaging is quick, easy and convenient.
+                    Choose a date, time and complete your booking in just a few simple steps.
+                </p>
+                <p className="text-gray-700">
+                    We&apos;re here to support you with accurate and timely diagnosis, whether you need a CT scan,
+                    X-ray, ultrasound, or DEXA bone density scan. Book online now, have your referral ready.
+                </p>
+            </div>
         </div>
     );
 
@@ -256,13 +287,17 @@ const AxisBookingForm = () => {
                     <p className="font-medium text-gray-800 mb-3">1. Do you have any presence of kidney disease?</p>
                     <div className="flex gap-6">
                         <label className="flex items-center space-x-2 cursor-pointer">
-                            <input type="radio" name="kidneyDisease" value="yes" checked={questionnaire.kidneyDisease === 'yes'} onChange={handleQuestionnaireChange} className="sr-only peer" />
-                            <span className="w-5 h-5 rounded-full border-2 border-gray-300 grid place-items-center peer-checked:border-blue-600"><span className="w-2.5 h-2.5 rounded-full bg-blue-600 invisible peer-checked:visible"></span></span>
+                            <input type="radio" name="kidneyDisease" value="yes" checked={questionnaire.kidneyDisease === 'yes'} onChange={handleQuestionnaireChange} className="hidden" />
+                            <span className={`w-5 h-5 rounded-full border-2 grid place-items-center ${questionnaire.kidneyDisease === 'yes' ? 'border-blue-600' : 'border-gray-300'}`}>
+                                <span className={`w-2.5 h-2.5 rounded-full bg-blue-600 ${questionnaire.kidneyDisease === 'yes' ? 'visible' : 'invisible'}`}></span>
+                            </span>
                             <span>Yes</span>
                         </label>
                         <label className="flex items-center space-x-2 cursor-pointer">
-                            <input type="radio" name="kidneyDisease" value="no" checked={questionnaire.kidneyDisease === 'no'} onChange={handleQuestionnaireChange} className="sr-only peer" />
-                            <span className="w-5 h-5 rounded-full border-2 border-gray-300 grid place-items-center peer-checked:border-blue-600"><span className="w-2.5 h-2.5 rounded-full bg-blue-600 invisible peer-checked:visible"></span></span>
+                            <input type="radio" name="kidneyDisease" value="no" checked={questionnaire.kidneyDisease === 'no'} onChange={handleQuestionnaireChange} className="hidden" />
+                            <span className={`w-5 h-5 rounded-full border-2 grid place-items-center ${questionnaire.kidneyDisease === 'no' ? 'border-blue-600' : 'border-gray-300'}`}>
+                                <span className={`w-2.5 h-2.5 rounded-full bg-blue-600 ${questionnaire.kidneyDisease === 'no' ? 'visible' : 'invisible'}`}></span>
+                            </span>
                             <span>No</span>
                         </label>
                     </div>
@@ -271,13 +306,17 @@ const AxisBookingForm = () => {
                     <p className="font-medium text-gray-800 mb-3">2. Are you diabetic?</p>
                     <div className="flex gap-6">
                         <label className="flex items-center space-x-2 cursor-pointer">
-                            <input type="radio" name="diabetic" value="yes" checked={questionnaire.diabetic === 'yes'} onChange={handleQuestionnaireChange} className="sr-only peer" />
-                            <span className="w-5 h-5 rounded-full border-2 border-gray-300 grid place-items-center peer-checked:border-blue-600"><span className="w-2.5 h-2.5 rounded-full bg-blue-600 invisible peer-checked:visible"></span></span>
+                            <input type="radio" name="diabetic" value="yes" checked={questionnaire.diabetic === 'yes'} onChange={handleQuestionnaireChange} className="hidden" />
+                            <span className={`w-5 h-5 rounded-full border-2 grid place-items-center ${questionnaire.diabetic === 'yes' ? 'border-blue-600' : 'border-gray-300'}`}>
+                                <span className={`w-2.5 h-2.5 rounded-full bg-blue-600 ${questionnaire.diabetic === 'yes' ? 'visible' : 'invisible'}`}></span>
+                            </span>
                             <span>Yes</span>
                         </label>
                         <label className="flex items-center space-x-2 cursor-pointer">
-                            <input type="radio" name="diabetic" value="no" checked={questionnaire.diabetic === 'no'} onChange={handleQuestionnaireChange} className="sr-only peer" />
-                            <span className="w-5 h-5 rounded-full border-2 border-gray-300 grid place-items-center peer-checked:border-blue-600"><span className="w-2.5 h-2.5 rounded-full bg-blue-600 invisible peer-checked:visible"></span></span>
+                            <input type="radio" name="diabetic" value="no" checked={questionnaire.diabetic === 'no'} onChange={handleQuestionnaireChange} className="hidden" />
+                            <span className={`w-5 h-5 rounded-full border-2 grid place-items-center ${questionnaire.diabetic === 'no' ? 'border-blue-600' : 'border-gray-300'}`}>
+                                <span className={`w-2.5 h-2.5 rounded-full bg-blue-600 ${questionnaire.diabetic === 'no' ? 'visible' : 'invisible'}`}></span>
+                            </span>
                             <span>No</span>
                         </label>
                     </div>
@@ -286,13 +325,17 @@ const AxisBookingForm = () => {
                     <p className="font-medium text-gray-800 mb-3">3. Are you currently taking Metformin?</p>
                     <div className="flex gap-6">
                         <label className="flex items-center space-x-2 cursor-pointer">
-                            <input type="radio" name="metformin" value="yes" checked={questionnaire.metformin === 'yes'} onChange={handleQuestionnaireChange} className="sr-only peer" />
-                            <span className="w-5 h-5 rounded-full border-2 border-gray-300 grid place-items-center peer-checked:border-blue-600"><span className="w-2.5 h-2.5 rounded-full bg-blue-600 invisible peer-checked:visible"></span></span>
+                            <input type="radio" name="metformin" value="yes" checked={questionnaire.metformin === 'yes'} onChange={handleQuestionnaireChange} className="hidden" />
+                            <span className={`w-5 h-5 rounded-full border-2 grid place-items-center ${questionnaire.metformin === 'yes' ? 'border-blue-600' : 'border-gray-300'}`}>
+                                <span className={`w-2.5 h-2.5 rounded-full bg-blue-600 ${questionnaire.metformin === 'yes' ? 'visible' : 'invisible'}`}></span>
+                            </span>
                             <span>Yes</span>
                         </label>
                         <label className="flex items-center space-x-2 cursor-pointer">
-                            <input type="radio" name="metformin" value="no" checked={questionnaire.metformin === 'no'} onChange={handleQuestionnaireChange} className="sr-only peer" />
-                            <span className="w-5 h-5 rounded-full border-2 border-gray-300 grid place-items-center peer-checked:border-blue-600"><span className="w-2.5 h-2.5 rounded-full bg-blue-600 invisible peer-checked:visible"></span></span>
+                            <input type="radio" name="metformin" value="no" checked={questionnaire.metformin === 'no'} onChange={handleQuestionnaireChange} className="hidden" />
+                            <span className={`w-5 h-5 rounded-full border-2 grid place-items-center ${questionnaire.metformin === 'no' ? 'border-blue-600' : 'border-gray-300'}`}>
+                                <span className={`w-2.5 h-2.5 rounded-full bg-blue-600 ${questionnaire.metformin === 'no' ? 'visible' : 'invisible'}`}></span>
+                            </span>
                             <span>No</span>
                         </label>
                     </div>

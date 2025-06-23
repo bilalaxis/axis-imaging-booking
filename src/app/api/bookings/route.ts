@@ -77,6 +77,7 @@ export async function POST(request: Request) {
                     status: 'pending',
                     notes: validatedData.notes || '',
                     referralUrl: validatedData.referralUrl || null,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 } as any,
                 include: {
                     patient: true,

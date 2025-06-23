@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { PatientDetailsForm } from '@/components/ui/patient-details-form';
 import { PatientDetailsForm as PatientDetailsFormData } from '@/lib/validations/booking';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { ArrowRight, ChevronDown } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 // Type definitions
 interface Service {

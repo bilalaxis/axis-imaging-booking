@@ -2,6 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, Calendar, MapPin, ArrowLeft, ArrowRight, Upload } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { zodResolver } from '@hookform/resolvers/zod';
 
 // Types
 interface Service {
@@ -20,7 +27,7 @@ interface BodyPart {
     serviceId: string;
 }
 
-interface Availability {
+interface AvailabilitySlot {
     date: string;
     slots: { time: string; available: boolean }[];
 }
@@ -36,13 +43,15 @@ interface PatientData {
 
 const AxisBookingForm = () => {
     const [currentStep, setCurrentStep] = useState(1);
+    const [services, setServices] = useState<Service[]>([]);
     const [selectedService, setSelectedService] = useState<Service | null>(null);
+    const [isBodyPartsLoading, setIsBodyPartsLoading] = useState<boolean>(false);
+    const [bodyParts, setBodyParts] = useState<BodyPart[]>([]);
     const [selectedBodyPart, setSelectedBodyPart] = useState<BodyPart | null>(null);
+    const [isAvailabilityLoading, setIsAvailabilityLoading] = useState<boolean>(false);
+    const [availability, setAvailability] = useState<AvailabilitySlot[]>([]);
     const [selectedTime, setSelectedTime] = useState<string>('');
     const [selectedDate, setSelectedDate] = useState<string>('');
-    const [services, setServices] = useState<Service[]>([]);
-    const [bodyParts, setBodyParts] = useState<BodyPart[]>([]);
-    const [availability, setAvailability] = useState<Availability[]>([]);
     const [isLoadingServices, setIsLoadingServices] = useState(true);
     const [isLoadingBodyParts, setIsLoadingBodyParts] = useState(false);
     const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
@@ -58,7 +67,10 @@ const AxisBookingForm = () => {
     const [referralFile, setReferralFile] = useState<File | null>(null);
     const [referralUrl, setReferralUrl] = useState<string>('');
     const [notes, setNotes] = useState<string>('');
-    const [bookingConfirmation, setBookingConfirmation] = useState<{ bookingId: string; scheduledDatetime: string; status: string; voyagerId: string } | null>(null);
+    const [bookingConfirmation, setBookingConfirmation] = useState<{ bookingId: string; scheduledDatetime: string; status: string; voyagerId: string | null } | null>(null);
+
+    const selectedServiceDetails = services.find(s => s.id === selectedService?.id);
+    const selectedBodyPartDetails = bodyParts.find(b => b.id === selectedBodyPart?.id);
 
     useEffect(() => {
         const fetchServices = async () => {
@@ -146,51 +158,47 @@ const AxisBookingForm = () => {
                         What service do you need?
                     </label>
                     <div className="relative">
-                        <select
-                            className="w-full p-3 border border-gray-300 rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            value={selectedService?.id || ''}
-                            onChange={(e) => {
-                                const service = services.find(s => s.id === e.target.value);
-                                setSelectedService(service || null);
-                                setSelectedBodyPart(null);
+                        <Select
+                            onValueChange={(serviceId) => {
+                                const service = services.find(s => s.id === serviceId) || null;
+                                setSelectedService(service);
+                                setSelectedBodyPart(null); // Reset body part on service change
                             }}
-                            disabled={isLoadingServices}
+                            value={selectedService?.id || ''}
                         >
-                            <option value="">{isLoadingServices ? 'Loading services...' : 'Please select'}</option>
-                            {services.map(service => (
-                                <option key={service.id} value={service.id}>
-                                    {service.name}
-                                </option>
-                            ))}
-                        </select>
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Please select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {services.map(service => (
+                                    <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                         <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                     </div>
                 </div>
 
-                {selectedService && (
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Which body part requires this service?
-                        </label>
-                        <div className="relative">
-                            <select
-                                className="w-full p-3 border border-gray-300 rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                value={selectedBodyPart?.id || ''}
-                                onChange={(e) => {
-                                    const bodyPart = bodyParts.find(bp => bp.id === e.target.value);
-                                    setSelectedBodyPart(bodyPart || null);
-                                }}
-                                disabled={isLoadingBodyParts || !selectedService}
-                            >
-                                <option value="">{isLoadingBodyParts ? 'Loading...' : 'Please select'}</option>
-                                {bodyParts.map(bodyPart => (
-                                    <option key={bodyPart.id} value={bodyPart.id}>
-                                        {bodyPart.name}
-                                    </option>
+                {selectedService && selectedService.name !== 'DEXA / Bone Density' && (
+                    <div className="space-y-2">
+                        <Label htmlFor="bodyPart">Which body part requires this service?</Label>
+                        <Select
+                            onValueChange={(bodyPartId) => {
+                                const part = bodyParts.find(p => p.id === bodyPartId) || null;
+                                setSelectedBodyPart(part);
+                            }}
+                            value={selectedBodyPart?.id || ''}
+                            disabled={isBodyPartsLoading}
+                        >
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder={isBodyPartsLoading ? "Loading..." : "Please select"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {bodyParts.map(part => (
+                                    <SelectItem key={part.id} value={part.id}>{part.name}</SelectItem>
                                 ))}
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                        </div>
+                            </SelectContent>
+                        </Select>
                     </div>
                 )}
 
@@ -366,8 +374,13 @@ const AxisBookingForm = () => {
     }
 
     const handleBookingSubmission = async () => {
-        if (!selectedService || !selectedBodyPart || !selectedTime || !selectedDate) {
+        if (!selectedService || !selectedDate || !selectedTime) {
             alert('Please complete all required fields')
+            return
+        }
+
+        if (selectedService.name !== 'DEXA / Bone Density' && !selectedBodyPart) {
+            alert('Please select a body part for this service')
             return
         }
 
@@ -391,7 +404,7 @@ const AxisBookingForm = () => {
                 },
                 body: JSON.stringify({
                     serviceId: selectedService.id,
-                    bodyPartId: selectedBodyPart.id,
+                    bodyPartId: selectedBodyPart?.id,
                     scheduledDatetime: scheduledDatetime.toISOString(),
                     patient: patientData,
                     referralUrl: finalReferralUrl,

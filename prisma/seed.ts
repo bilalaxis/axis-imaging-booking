@@ -36,11 +36,11 @@ async function main() {
         }),
         prisma.service.create({
             data: {
-                name: 'MRI',
-                code: 'MRI',
-                category: 'MRI',
-                description: 'Magnetic Resonance Imaging',
-                durationMinutes: 60, // Longest procedure
+                name: 'DEXA / Bone Density',
+                code: 'DXA',
+                category: 'Bone Density',
+                description: 'Dual-energy X-ray absorptiometry for bone density measurement.',
+                durationMinutes: 20,
             },
         }),
         prisma.service.create({
@@ -59,10 +59,9 @@ async function main() {
     // Find the specific services to add body parts to
     const xrayService = services.find(s => s.code === 'XR')
     const ctService = services.find(s => s.code === 'CT')
-    const mriService = services.find(s => s.code === 'MRI')
     const ultrasoundService = services.find(s => s.code === 'US')
 
-    if (!xrayService || !ctService || !mriService || !ultrasoundService) {
+    if (!xrayService || !ctService || !ultrasoundService) {
         throw new Error('Could not find all required services in the seed data.')
     }
 
@@ -105,15 +104,6 @@ async function main() {
             preparationText: "Preparation can vary. Please consult with our staff when booking.",
         }))
     });
-
-    // MRI body parts (existing)
-    await prisma.bodyPart.createMany({
-        data: [
-            { name: 'Brain', serviceId: mriService.id, preparationText: 'Remove all metal objects. No food restrictions. Inform staff of any implants.' },
-            { name: 'Spine', serviceId: mriService.id, preparationText: 'Remove all metal objects. No food restrictions. Inform staff of any implants.' },
-            { name: 'Joints', serviceId: mriService.id, preparationText: 'Remove all metal objects. No food restrictions. Inform staff of any implants.' }
-        ]
-    })
 
     // Ultrasound body parts from I-MED list
     const ultrasoundBodyPartNames = [

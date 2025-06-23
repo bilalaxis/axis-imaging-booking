@@ -14,7 +14,7 @@ export const patientDetailsSchema = z.object({
 
 export const bookingSchema = z.object({
     serviceId: z.string().uuid('Invalid service ID'),
-    bodyPartId: z.string().uuid('Invalid body part ID'),
+    bodyPartId: z.string().uuid('Invalid body part ID').optional(),
     scheduledDatetime: z.date({
         required_error: 'Please select a date and time',
     }),

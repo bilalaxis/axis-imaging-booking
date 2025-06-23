@@ -43,7 +43,6 @@ const AxisBookingForm = () => {
     // Submission states
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submissionError, setSubmissionError] = useState<string | null>(null);
-    const [referralUrl, setReferralUrl] = useState<string>('');
     const [bookingConfirmation, setBookingConfirmation] = useState<{ bookingId: string; scheduledDatetime: string; status: string; voyagerId: string | null } | null>(null);
 
     useEffect(() => {
@@ -145,7 +144,6 @@ const AxisBookingForm = () => {
             bodyPartId: selectedBodyPart?.id,
             scheduledDatetime: scheduledDatetime.toISOString(),
             patientDetails: data,
-            referralUrl,
             notes: data.notes,
         };
 

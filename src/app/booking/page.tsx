@@ -224,35 +224,38 @@ const AxisBookingForm = () => {
                 </div>
             )}
 
-            {currentStep === 2 && (
-                <div>
-                    <h2 className="text-xl font-semibold mb-4">Select Date and Time</h2>
-                    {isLoadingAvailability ? (
-                        <p>Loading availability...</p>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <Calendar
-                                mode="single"
-                                selected={selectedDate ? parseISO(selectedDate) : undefined}
-                                onSelect={(date) => setSelectedDate(date ? format(date, 'yyyy-MM-dd') : '')}
-                                disabled={(date) => !availability.some(slot => slot.date === format(date, 'yyyy-MM-dd')) || (date ? date < new Date() : false)}
-                            />
-                            <div className="grid grid-cols-3 gap-2 h-fit">
-                                {selectedDate && availability.find(day => day.date === selectedDate)?.slots.map((slot) => (
-                                    <Button
-                                        key={slot.time}
-                                        variant={selectedTime === slot.time ? 'default' : 'outline'}
-                                        onClick={() => setSelectedTime(slot.time)}
-                                        disabled={!slot.available}
-                                    >
-                                        {slot.time}
-                                    </Button>
-                                ))}
+            {currentStep === 2 && (() => {
+                const daySlots = selectedDate ? availability.find(day => day.date === selectedDate)?.slots : [];
+                return (
+                    <div>
+                        <h2 className="text-xl font-semibold mb-4">Select Date and Time</h2>
+                        {isLoadingAvailability ? (
+                            <p>Loading availability...</p>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <Calendar
+                                    mode="single"
+                                    selected={selectedDate ? parseISO(selectedDate) : undefined}
+                                    onSelect={(date) => setSelectedDate(date ? format(date, 'yyyy-MM-dd') : '')}
+                                    disabled={(date) => !availability.some(slot => slot.date === format(date, 'yyyy-MM-dd')) || (date ? date < new Date() : false)}
+                                />
+                                <div className="grid grid-cols-3 gap-2 h-fit">
+                                    {daySlots && daySlots.map((slot) => (
+                                        <Button
+                                            key={slot.time}
+                                            variant={selectedTime === slot.time ? 'default' : 'outline'}
+                                            onClick={() => setSelectedTime(slot.time)}
+                                            disabled={!slot.available}
+                                        >
+                                            {slot.time}
+                                        </Button>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    )}
-                </div>
-            )}
+                        )}
+                    </div>
+                )
+            })()}
 
             {currentStep === 3 && (
                 <PatientDetailsForm onSubmit={handlePatientDetailsSubmit} isSubmitting={isSubmitting} />

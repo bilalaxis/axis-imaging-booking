@@ -1,8 +1,8 @@
 // src/app/api/availability/route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { addDays, format, isBefore, startOfDay, parseISO } from 'date-fns'
-import { toZonedTime } from 'date-fns-tz'
+import { voyagerClient } from '@/lib/voyager-client'
+import { addDays, format, parseISO } from 'date-fns'
 
 export async function GET(request: Request) {
     try {
@@ -18,81 +18,118 @@ export async function GET(request: Request) {
             )
         }
 
-        const fromDate = startOfDay(parseISO(dateFrom))
-        const toDate = startOfDay(addDays(parseISO(dateTo), 1))
+        // Get service details for duration
+        const service = await prisma.service.findUnique({
+            where: { id: serviceId },
+            select: { id: true, name: true, durationMinutes: true }
+        })
 
-        // 1. Fetch all available slots for the service within the date range
-        const potentialSlots = await prisma.availabilitySlot.findMany({
-            where: {
-                serviceId: serviceId,
-                isAvailable: true,
-                startTime: {
-                    gte: fromDate,
-                    lt: toDate,
+        if (!service) {
+            return NextResponse.json({ error: 'Service not found' }, { status: 404 })
+        }
+
+        try {
+            // Fetch real-time availability from Voyager
+            const voyagerAvailability = await voyagerClient.getAvailability(
+                serviceId,
+                dateFrom,
+                dateTo
+            )
+
+            // Transform Voyager response to match our frontend expectations
+            const availability = voyagerAvailability.map(day => ({
+                date: day.date,
+                slots: day.slots
+                    .filter(slot => slot.available)
+                    .map(slot => ({
+                        time: slot.startTime.substring(11, 16), // Extract HH:MM from ISO string
+                        available: slot.available
+                    }))
+            })).filter(day => day.slots.length > 0)
+
+            return NextResponse.json({
+                service: { durationMinutes: service.durationMinutes },
+                availability
+            })
+
+        } catch (voyagerError) {
+            console.error('Voyager integration failed, falling back to local availability:', voyagerError)
+
+            // Fallback to local availability if Voyager is unavailable
+            const fromDate = parseISO(dateFrom)
+            const toDate = parseISO(dateTo)
+
+            // Get local availability slots as fallback
+            const localSlots = await prisma.availabilitySlot.findMany({
+                where: {
+                    serviceId: serviceId,
+                    isAvailable: true,
+                    startTime: {
+                        gte: fromDate,
+                        lt: toDate,
+                    },
                 },
-            },
-            orderBy: {
-                startTime: 'asc',
-            },
-        })
-
-        // 2. Fetch all existing confirmed/pending appointments for conflict checking
-        const existingAppointments = await prisma.appointment.findMany({
-            where: {
-                serviceId: serviceId,
-                status: { in: ['pending', 'confirmed'] },
-                scheduledDatetime: {
-                    gte: fromDate,
-                    lt: toDate,
+                orderBy: {
+                    startTime: 'asc',
                 },
-            },
-            select: {
-                scheduledDatetime: true,
-            },
-        })
+            })
 
-        const bookedTimes = new Set(
-            existingAppointments.map(appt => appt.scheduledDatetime.toISOString())
-        )
+            // Get existing appointments to check conflicts
+            const existingAppointments = await prisma.appointment.findMany({
+                where: {
+                    serviceId: serviceId,
+                    status: { in: ['pending', 'confirmed'] },
+                    scheduledDatetime: {
+                        gte: fromDate,
+                        lt: toDate,
+                    },
+                },
+                select: {
+                    scheduledDatetime: true,
+                },
+            })
 
-        const now = new Date()
+            const bookedTimes = new Set(
+                existingAppointments.map(appt => appt.scheduledDatetime.toISOString())
+            )
 
-        // 3. Filter out booked slots and past slots
-        const availableSlots = potentialSlots.filter(slot => {
-            const isBooked = bookedTimes.has(slot.startTime.toISOString())
-            const isPast = isBefore(slot.startTime, now)
-            return !isBooked && !isPast
-        })
+            const now = new Date()
 
-        // 4. Group available slots by date for the frontend
-        const groupedSlots: Record<string, { time: string; available: boolean }[]> = {}
+            // Filter out booked slots and past slots
+            const availableSlots = localSlots.filter(slot => {
+                const isBooked = bookedTimes.has(slot.startTime.toISOString())
+                const isPast = slot.startTime < now
+                return !isBooked && !isPast
+            })
 
-        const timeZone = 'Australia/Melbourne' // Or your specific clinic's timezone
+            // Group by date
+            const groupedSlots: Record<string, { time: string; available: boolean }[]> = {}
 
-        for (const slot of availableSlots) {
-            const localTime = toZonedTime(slot.startTime, timeZone)
-            const dateStr = format(localTime, 'yyyy-MM-dd')
-            const timeStr = format(localTime, 'HH:mm')
+            for (const slot of availableSlots) {
+                const dateStr = format(slot.startTime, 'yyyy-MM-dd')
+                const timeStr = format(slot.startTime, 'HH:mm')
 
-            if (!groupedSlots[dateStr]) {
-                groupedSlots[dateStr] = []
+                if (!groupedSlots[dateStr]) {
+                    groupedSlots[dateStr] = []
+                }
+
+                groupedSlots[dateStr].push({
+                    time: timeStr,
+                    available: true,
+                })
             }
 
-            groupedSlots[dateStr].push({
-                time: timeStr,
-                available: true, // All slots here are available by definition
+            const availability = Object.entries(groupedSlots).map(([date, slots]) => ({
+                date,
+                slots,
+            })).sort((a, b) => a.date.localeCompare(b.date))
+
+            return NextResponse.json({
+                service: { durationMinutes: service.durationMinutes },
+                availability
             })
         }
 
-        // 5. Convert the grouped object into an array for the response
-        const responseData = Object.entries(groupedSlots).map(([date, slots]) => ({
-            date,
-            slots,
-        })).sort((a, b) => a.date.localeCompare(b.date));
-
-        return NextResponse.json({
-            availability: responseData,
-        })
     } catch (error) {
         console.error('Error fetching availability:', error)
         return NextResponse.json(

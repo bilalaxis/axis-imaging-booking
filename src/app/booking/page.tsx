@@ -25,17 +25,39 @@ interface Availability {
     slots: { time: string; available: boolean }[];
 }
 
+interface PatientData {
+    title: string;
+    firstName: string;
+    lastName: string;
+    dateOfBirth: string;
+    email: string;
+    mobile: string;
+}
+
 const AxisBookingForm = () => {
     const [currentStep, setCurrentStep] = useState(1);
     const [selectedService, setSelectedService] = useState<Service | null>(null);
     const [selectedBodyPart, setSelectedBodyPart] = useState<BodyPart | null>(null);
     const [selectedTime, setSelectedTime] = useState<string>('');
+    const [selectedDate, setSelectedDate] = useState<string>('');
     const [services, setServices] = useState<Service[]>([]);
     const [bodyParts, setBodyParts] = useState<BodyPart[]>([]);
     const [availability, setAvailability] = useState<Availability[]>([]);
     const [isLoadingServices, setIsLoadingServices] = useState(true);
     const [isLoadingBodyParts, setIsLoadingBodyParts] = useState(false);
     const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [patientData, setPatientData] = useState<PatientData>({
+        title: '',
+        firstName: '',
+        lastName: '',
+        dateOfBirth: '',
+        email: '',
+        mobile: '',
+    });
+    const [referralFile, setReferralFile] = useState<File | null>(null);
+    const [referralUrl, setReferralUrl] = useState<string>('');
+    const [notes, setNotes] = useState<string>('');
 
     useEffect(() => {
         const fetchServices = async () => {
@@ -277,8 +299,11 @@ const AxisBookingForm = () => {
                                     {day.slots.map(slot => (
                                         <button
                                             key={slot.time}
-                                            onClick={() => setSelectedTime(slot.time)}
-                                            className={`px-4 py-2 border rounded-lg transition-colors ${selectedTime === slot.time
+                                            onClick={() => {
+                                                setSelectedTime(slot.time)
+                                                setSelectedDate(day.date)
+                                            }}
+                                            className={`px-4 py-2 border rounded-lg transition-colors ${selectedTime === slot.time && selectedDate === day.date
                                                 ? 'bg-blue-600 text-white border-blue-600'
                                                 : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
                                                 }`}
@@ -303,7 +328,7 @@ const AxisBookingForm = () => {
                     <ArrowLeft className="mr-2" size={20} />
                     Back
                 </button>
-                {selectedTime && (
+                {selectedTime && selectedDate && (
                     <button
                         onClick={() => setCurrentStep(4)}
                         className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors flex items-center"
@@ -315,6 +340,81 @@ const AxisBookingForm = () => {
             </div>
         </div>
     );
+
+    const handleFileUpload = async (file: File) => {
+        try {
+            const formData = new FormData()
+            formData.append('file', file)
+
+            const response = await fetch('/api/referrals/upload', {
+                method: 'POST',
+                body: formData,
+            })
+
+            if (!response.ok) {
+                throw new Error('Failed to upload file')
+            }
+
+            const data = await response.json()
+            setReferralUrl(data.url)
+            return data.url
+        } catch (error) {
+            console.error('Error uploading file:', error)
+            throw error
+        }
+    }
+
+    const handleBookingSubmission = async () => {
+        if (!selectedService || !selectedBodyPart || !selectedTime || !selectedDate) {
+            alert('Please complete all required fields')
+            return
+        }
+
+        setIsSubmitting(true)
+
+        try {
+            // Upload referral file if provided
+            let finalReferralUrl = referralUrl
+            if (referralFile && !referralUrl) {
+                finalReferralUrl = await handleFileUpload(referralFile)
+            }
+
+            // Create scheduled datetime
+            const scheduledDatetime = new Date(`${selectedDate}T${selectedTime}:00`)
+
+            // Submit booking
+            const response = await fetch('/api/bookings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    serviceId: selectedService.id,
+                    bodyPartId: selectedBodyPart.id,
+                    scheduledDatetime: scheduledDatetime.toISOString(),
+                    patient: patientData,
+                    referralUrl: finalReferralUrl,
+                    notes: notes,
+                }),
+            })
+
+            if (!response.ok) {
+                const errorData = await response.json()
+                throw new Error(errorData.error || 'Failed to create booking')
+            }
+
+            const bookingData = await response.json()
+
+            // Move to confirmation step
+            setCurrentStep(5)
+
+        } catch (error) {
+            console.error('Error submitting booking:', error)
+            alert(`Failed to submit booking: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
 
     const PatientDetails = () => (
         <div className="max-w-2xl mx-auto">
@@ -330,12 +430,16 @@ const AxisBookingForm = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                            <select className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                <option>Please select</option>
-                                <option>Mr</option>
-                                <option>Ms</option>
-                                <option>Mrs</option>
-                                <option>Dr</option>
+                            <select
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                value={patientData.title}
+                                onChange={(e) => setPatientData({ ...patientData, title: e.target.value })}
+                            >
+                                <option value="">Please select</option>
+                                <option value="Mr">Mr</option>
+                                <option value="Ms">Ms</option>
+                                <option value="Mrs">Mrs</option>
+                                <option value="Dr">Dr</option>
                             </select>
                         </div>
                         <div></div>
@@ -346,6 +450,9 @@ const AxisBookingForm = () => {
                                 type="text"
                                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 placeholder="Enter first name"
+                                value={patientData.firstName}
+                                onChange={(e) => setPatientData({ ...patientData, firstName: e.target.value })}
+                                required
                             />
                         </div>
 
@@ -355,6 +462,9 @@ const AxisBookingForm = () => {
                                 type="text"
                                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 placeholder="Enter last name"
+                                value={patientData.lastName}
+                                onChange={(e) => setPatientData({ ...patientData, lastName: e.target.value })}
+                                required
                             />
                         </div>
 
@@ -363,6 +473,9 @@ const AxisBookingForm = () => {
                             <input
                                 type="date"
                                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                value={patientData.dateOfBirth}
+                                onChange={(e) => setPatientData({ ...patientData, dateOfBirth: e.target.value })}
+                                required
                             />
                         </div>
                     </div>
@@ -378,6 +491,9 @@ const AxisBookingForm = () => {
                                 type="email"
                                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 placeholder="Enter email address"
+                                value={patientData.email}
+                                onChange={(e) => setPatientData({ ...patientData, email: e.target.value })}
+                                required
                             />
                         </div>
 
@@ -387,6 +503,9 @@ const AxisBookingForm = () => {
                                 type="tel"
                                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 placeholder="Enter mobile number"
+                                value={patientData.mobile}
+                                onChange={(e) => setPatientData({ ...patientData, mobile: e.target.value })}
+                                required
                             />
                         </div>
                     </div>
@@ -398,9 +517,26 @@ const AxisBookingForm = () => {
 
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                         <Upload className="mx-auto text-gray-400 mb-4" size={48} />
-                        <button className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors">
-                            Upload referral
-                        </button>
+                        <input
+                            type="file"
+                            id="referral-upload"
+                            className="hidden"
+                            accept=".jpg,.jpeg,.png,.pdf"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0]
+                                if (file) {
+                                    setReferralFile(file)
+                                }
+                            }}
+                        />
+                        <label htmlFor="referral-upload" className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer">
+                            {referralFile ? referralFile.name : 'Upload referral'}
+                        </label>
+                        {referralFile && (
+                            <p className="text-sm text-green-600 mt-2">
+                                ✓ {referralFile.name} selected
+                            </p>
+                        )}
                         <p className="text-sm text-gray-500 mt-2">
                             Accepted formats: JPG, PNG, PDF (Max 10MB)
                         </p>
@@ -420,6 +556,8 @@ const AxisBookingForm = () => {
                         className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         rows={4}
                         placeholder="Please provide any information relevant to your appointment. E.g. if you need assistance upon arrival, have allergies, mobility issues, etc."
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
                     />
                 </div>
             </div>
@@ -428,50 +566,69 @@ const AxisBookingForm = () => {
                 <button
                     onClick={() => setCurrentStep(3)}
                     className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-3 px-6 rounded-lg transition-colors flex items-center"
+                    disabled={isSubmitting}
                 >
                     <ArrowLeft className="mr-2" size={20} />
                     Back
                 </button>
                 <button
-                    onClick={() => setCurrentStep(5)}
+                    onClick={handleBookingSubmission}
                     className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors flex items-center"
+                    disabled={isSubmitting}
                 >
-                    Continue
-                    <ArrowRight className="ml-2" size={20} />
+                    {isSubmitting ? (
+                        <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Submitting...
+                        </>
+                    ) : (
+                        <>
+                            Continue
+                            <ArrowRight className="ml-2" size={20} />
+                        </>
+                    )}
                 </button>
             </div>
         </div>
     );
 
-    const ConfirmationStep = () => (
-        <div className="max-w-2xl mx-auto text-center">
-            <div className="mb-8">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                </div>
-                <h1 className="text-3xl font-bold text-blue-900 mb-2">Booking Request Submitted</h1>
-                <p className="text-gray-600">We&apos;ll contact you within 24 hours to confirm your appointment</p>
-            </div>
+    const ConfirmationStep = () => {
+        const appointmentDate = selectedDate && selectedTime
+            ? format(parseISO(selectedDate), 'EEEE, d MMMM')
+            : 'Date not selected'
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-                <h3 className="font-semibold text-blue-900 mb-4">Appointment Summary</h3>
-                <div className="text-left space-y-2">
-                    <p><span className="font-medium">Service:</span> {selectedService?.name}</p>
-                    <p><span className="font-medium">Body Part:</span> {selectedBodyPart?.name}</p>
-                    <p><span className="font-medium">Preferred Time:</span> Monday, 24 June at {selectedTime}</p>
-                    <p><span className="font-medium">Location:</span> Axis Imaging Mickleham</p>
-                    <p><span className="font-medium">Duration:</span> Approximately {selectedService?.durationMinutes} minutes</p>
+        return (
+            <div className="max-w-2xl mx-auto text-center">
+                <div className="mb-8">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                    <h1 className="text-3xl font-bold text-blue-900 mb-2">Booking Request Submitted</h1>
+                    <p className="text-gray-600">We&apos;ll contact you within 24 hours to confirm your appointment</p>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                    <h3 className="font-semibold text-blue-900 mb-4">Appointment Summary</h3>
+                    <div className="text-left space-y-2">
+                        <p><span className="font-medium">Service:</span> {selectedService?.name}</p>
+                        <p><span className="font-medium">Body Part:</span> {selectedBodyPart?.name}</p>
+                        <p><span className="font-medium">Preferred Time:</span> {appointmentDate} at {selectedTime}</p>
+                        <p><span className="font-medium">Location:</span> Axis Imaging Mickleham</p>
+                        <p><span className="font-medium">Duration:</span> Approximately {selectedService?.durationMinutes} minutes</p>
+                        <p><span className="font-medium">Patient:</span> {patientData.firstName} {patientData.lastName}</p>
+                        <p><span className="font-medium">Contact:</span> {patientData.email}</p>
+                    </div>
+                </div>
+
+                <div className="text-sm text-gray-600">
+                    <p>Reference: AXI-{Math.random().toString(36).substr(2, 9).toUpperCase()}</p>
+                    <p className="mt-2">A confirmation email has been sent to your email address.</p>
                 </div>
             </div>
-
-            <div className="text-sm text-gray-600">
-                <p>Reference: AXI-{Math.random().toString(36).substr(2, 9).toUpperCase()}</p>
-                <p className="mt-2">A confirmation email has been sent to your email address.</p>
-            </div>
-        </div>
-    );
+        )
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 py-8">

@@ -1,7 +1,6 @@
 "use client"
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, Calendar, Clock, MapPin, ArrowLeft, ArrowRight, Upload, Info } from 'lucide-react';
-import { Metadata } from 'next';
+import { ChevronDown, Calendar, MapPin, ArrowLeft, ArrowRight, Upload } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 // Types
@@ -21,12 +20,6 @@ interface BodyPart {
     serviceId: string;
 }
 
-interface TimeSlot {
-    id: string;
-    start_time: string;
-    available: boolean;
-}
-
 interface Availability {
     date: string;
     slots: { time: string; available: boolean }[];
@@ -36,7 +29,6 @@ const AxisBookingForm = () => {
     const [currentStep, setCurrentStep] = useState(1);
     const [selectedService, setSelectedService] = useState<Service | null>(null);
     const [selectedBodyPart, setSelectedBodyPart] = useState<BodyPart | null>(null);
-    const [selectedDate, setSelectedDate] = useState<string>('');
     const [selectedTime, setSelectedTime] = useState<string>('');
     const [services, setServices] = useState<Service[]>([]);
     const [bodyParts, setBodyParts] = useState<BodyPart[]>([]);
@@ -109,16 +101,6 @@ const AxisBookingForm = () => {
             setAvailability([]);
         }
     }, [selectedService]);
-
-    const availableSlots = [
-        '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
-        '11:00', '11:30', '13:00', '13:30', '14:00', '14:30',
-        '15:00', '15:30', '16:00', '16:30'
-    ];
-
-    const getFilteredBodyParts = () => {
-        return selectedService ? bodyParts.filter(bp => bp.serviceId === selectedService.id) : [];
-    };
 
     const formatPreparationText = (text: string) => {
         return text.split('\n').map((line, index) => (
@@ -193,10 +175,10 @@ const AxisBookingForm = () => {
                     <details className="cursor-pointer">
                         <summary className="text-blue-800 font-medium flex items-center">
                             <ChevronDown className="mr-2" size={16} />
-                            What if I can't find my scan in the service list?
+                            What if I can&apos;t find my scan in the service list?
                         </summary>
                         <div className="mt-3 text-blue-700">
-                            <p>If you can't find your scan in the service list or are uncertain, please contact us directly at <span className="font-medium">(03) 9123 4567</span> or email <span className="font-medium">bookings@axisimaging.com.au</span> to discuss your specific requirements.</p>
+                            <p>If you can&apos;t find your scan in the service list or are uncertain, please contact us directly at <span className="font-medium">(03) 9123 4567</span> or email <span className="font-medium">bookings@axisimaging.com.au</span> to discuss your specific requirements.</p>
                         </div>
                     </details>
                 </div>
@@ -219,7 +201,7 @@ const AxisBookingForm = () => {
                     Choose a date, time and complete your booking in just a few simple steps.
                 </p>
                 <p className="text-gray-700">
-                    We're here to support you with accurate and timely diagnosis, whether you need a CT scan,
+                    We&apos;re here to support you with accurate and timely diagnosis, whether you need a CT scan,
                     X-ray, ultrasound, or DEXA bone density scan. Book online now, have your referral ready.
                 </p>
             </div>
@@ -470,7 +452,7 @@ const AxisBookingForm = () => {
                     </svg>
                 </div>
                 <h1 className="text-3xl font-bold text-blue-900 mb-2">Booking Request Submitted</h1>
-                <p className="text-gray-600">We'll contact you within 24 hours to confirm your appointment</p>
+                <p className="text-gray-600">We&apos;ll contact you within 24 hours to confirm your appointment</p>
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
@@ -522,17 +504,6 @@ const AxisBookingForm = () => {
             </div>
         </div>
     );
-};
-
-// Add these functions to fetch real data
-const fetchServices = async () => {
-    const response = await fetch('/api/services');
-    return response.json();
-};
-
-const fetchBodyParts = async (serviceId: string) => {
-    const response = await fetch(`/api/services/${serviceId}/body-parts`);
-    return response.json();
 };
 
 export default AxisBookingForm;

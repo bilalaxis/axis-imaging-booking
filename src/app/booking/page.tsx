@@ -58,6 +58,7 @@ const AxisBookingForm = () => {
     const [referralFile, setReferralFile] = useState<File | null>(null);
     const [referralUrl, setReferralUrl] = useState<string>('');
     const [notes, setNotes] = useState<string>('');
+    const [bookingConfirmation, setBookingConfirmation] = useState<{ bookingId: string; scheduledDatetime: string; status: string; voyagerId: string } | null>(null);
 
     useEffect(() => {
         const fetchServices = async () => {
@@ -403,10 +404,16 @@ const AxisBookingForm = () => {
                 throw new Error(errorData.error || 'Failed to create booking')
             }
 
-            const bookingData = await response.json()
+            const result = await response.json()
 
             // Move to confirmation step
-            setCurrentStep(5)
+            setCurrentStep(4)
+            setBookingConfirmation({
+                bookingId: result.appointment.id,
+                scheduledDatetime: result.appointment.scheduledDatetime,
+                status: result.appointment.status,
+                voyagerId: result.appointment.voyagerAppointmentId,
+            })
 
         } catch (error) {
             console.error('Error submitting booking:', error)
@@ -658,6 +665,18 @@ const AxisBookingForm = () => {
                 {currentStep === 3 && <DateTimeSelector />}
                 {currentStep === 4 && <PatientDetails />}
                 {currentStep === 5 && <ConfirmationStep />}
+
+                {currentStep === 4 && bookingConfirmation && (
+                    <div className="mt-8 p-6 bg-green-50 border border-green-200 rounded">
+                        <h2 className="text-xl font-semibold mb-2">Booking Confirmed!</h2>
+                        <p>Your booking reference: <span className="font-mono">{bookingConfirmation.bookingId}</span></p>
+                        <p>Scheduled for: <span className="font-mono">{new Date(bookingConfirmation.scheduledDatetime).toLocaleString()}</span></p>
+                        <p>Status: <span className="font-mono">{bookingConfirmation.status}</span></p>
+                        {bookingConfirmation.voyagerId && (
+                            <p>Voyager Appointment ID: <span className="font-mono">{bookingConfirmation.voyagerId}</span></p>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { put } from '@vercel/blob'
-import { z } from 'zod'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf']

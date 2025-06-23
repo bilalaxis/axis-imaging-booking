@@ -1,5 +1,3 @@
-import { format } from 'date-fns'
-
 interface VoyagerConfig {
     baseUrl: string
     username: string
@@ -17,6 +15,28 @@ interface VoyagerTimeSlot {
 interface VoyagerAvailabilityResponse {
     date: string
     slots: VoyagerTimeSlot[]
+}
+
+interface VoyagerAppointmentData {
+    id: string
+    patientId: string
+    serviceId: string
+    scheduledDatetime: Date
+    duration: number
+    notes: string
+    patient: {
+        id: string
+        firstName: string
+        lastName: string
+        dateOfBirth: Date
+        email: string
+    }
+    service: {
+        name: string
+    }
+    bodyPart: {
+        name: string
+    }
 }
 
 export class VoyagerClient {
@@ -72,7 +92,7 @@ export class VoyagerClient {
     /**
      * Create appointment in Voyager
      */
-    async createAppointment(appointmentData: any): Promise<{ success: boolean; voyagerId?: string }> {
+    async createAppointment(appointmentData: VoyagerAppointmentData): Promise<{ success: boolean; voyagerId?: string }> {
         try {
             // Option 1: REST API
             if (this.config.baseUrl) {
@@ -101,7 +121,7 @@ export class VoyagerClient {
             }
 
             // Option 2: HL7 message (SIU^S12)
-            const hl7Message = this.generateHL7AppointmentMessage(appointmentData)
+            // const hl7Message = this.generateHL7AppointmentMessage(appointmentData)
             // Send via MLLP client
             // const response = await this.sendHL7Message(hl7Message)
 
@@ -116,7 +136,7 @@ export class VoyagerClient {
     /**
      * Generate HL7 appointment message
      */
-    private generateHL7AppointmentMessage(appointmentData: any): string {
+    private generateHL7AppointmentMessage(appointmentData: VoyagerAppointmentData): string {
         const now = new Date()
         const messageId = `AXI-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 

@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { voyagerClient } from '@/lib/voyager-client'
 import { bookingSchema } from '@/lib/validations/booking'
-import { format, parseISO } from 'date-fns'
 
 export async function POST(request: Request) {
     try {

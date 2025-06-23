@@ -3,13 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
 import { PatientDetailsForm } from '@/components/ui/patient-details-form';
 import { PatientDetailsForm as PatientDetailsFormData } from '@/lib/validations/booking';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Calendar } from '@/components/ui/calendar';
+import { Button } from '@/components/ui/button';
 
 // Type definitions
 interface Service {

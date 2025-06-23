@@ -1,25 +1,28 @@
 "use client"
 
-import { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { ChevronDown, ArrowLeft, ArrowRight, Upload } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { PatientDetailsForm } from '@/components/ui/patient-details-form';
 import { PatientDetailsForm as PatientDetailsFormData } from '@/lib/validations/booking';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { ArrowRight } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
 
 // Type definitions
 interface Service {
     id: string;
     name: string;
+    description: string | null;
+    durationMinutes: number;
 }
 
 interface BodyPart {
     id: string;
     name: string;
+    preparationText: string | null;
 }
 
 interface AvailabilitySlot {
@@ -37,6 +40,7 @@ const AxisBookingForm = () => {
     const [selectedTime, setSelectedTime] = useState<string>('');
     const [selectedDate, setSelectedDate] = useState<string>('');
     const [daySlots, setDaySlots] = useState<{ time: string; available: boolean }[]>([]);
+    const [questionnaire, setQuestionnaire] = useState({ kidneyDisease: '', diabetic: '', metformin: '' });
 
     // Loading states
     const [isLoadingServices, setIsLoadingServices] = useState(true);
@@ -47,6 +51,7 @@ const AxisBookingForm = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submissionError, setSubmissionError] = useState<string | null>(null);
     const [bookingConfirmation, setBookingConfirmation] = useState<{ bookingId: string; scheduledDatetime: string; status: string; voyagerId: string | null } | null>(null);
+    const [referralFile, setReferralFile] = useState<File | null>(null);
 
     useEffect(() => {
         const fetchServices = async () => {
@@ -68,8 +73,9 @@ const AxisBookingForm = () => {
 
     useEffect(() => {
         const fetchBodyParts = async () => {
-            if (!selectedService) {
+            if (!selectedService || selectedService.name === 'DEXA / Bone Density') {
                 setBodyParts([]);
+                setSelectedBodyPart(null);
                 return;
             }
             setIsLoadingBodyParts(true);
@@ -85,13 +91,7 @@ const AxisBookingForm = () => {
                 setIsLoadingBodyParts(false);
             }
         };
-
-        if (selectedService?.name !== 'DEXA / Bone Density') {
-            fetchBodyParts();
-        } else {
-            setBodyParts([]);
-            setSelectedBodyPart(null);
-        }
+        fetchBodyParts();
     }, [selectedService]);
 
     useEffect(() => {
@@ -121,42 +121,54 @@ const AxisBookingForm = () => {
         setDaySlots(slots);
     }, [selectedDate, availability]);
 
-    const handleNextStep = () => {
-        if (isStepComplete(currentStep)) {
-            setCurrentStep(currentStep + 1);
-        }
+    const handleNextStep = () => setCurrentStep(currentStep + 1);
+    const handlePrevStep = () => setCurrentStep(currentStep - 1);
+
+    const handleQuestionnaireChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setQuestionnaire({ ...questionnaire, [e.target.name]: e.target.value });
     };
 
-    const isStepComplete = (step: number) => {
-        switch (step) {
-            case 1:
-                if (selectedService?.name === 'DEXA / Bone Density') {
-                    return !!selectedService;
-                }
-                return !!selectedService && !!selectedBodyPart;
-            case 2:
-                return !!selectedDate && !!selectedTime;
-            default:
-                return false;
-        }
+    const formatPreparationText = (text: string | null) => {
+        if (!text) return <p>No specific preparation instructions are required for this scan.</p>;
+        return text.split('\n').map((line, index) => (
+            <p key={index} className="mb-2">
+                {line}
+            </p>
+        ));
     };
 
-    const handlePatientDetailsSubmit = async (data: PatientDetailsFormData) => {
-        if (!selectedService || !selectedDate || !selectedTime) {
-            setSubmissionError("Please ensure service, date, and time are selected.");
-            return;
-        }
-
+    const handleBookingSubmit = async (data: PatientDetailsFormData) => {
         setIsSubmitting(true);
         setSubmissionError(null);
 
+        let uploadedReferralUrl = '';
+        if (referralFile) {
+            const formData = new FormData();
+            formData.append('file', referralFile);
+            try {
+                const res = await fetch('/api/referrals/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error || 'Upload failed');
+                uploadedReferralUrl = result.url;
+            } catch (error) {
+                setSubmissionError(error instanceof Error ? error.message : 'Failed to upload referral.');
+                setIsSubmitting(false);
+                return;
+            }
+        }
+
         const scheduledDatetime = new Date(`${selectedDate}T${selectedTime}`);
         const bookingPayload = {
-            serviceId: selectedService.id,
+            serviceId: selectedService!.id,
             bodyPartId: selectedBodyPart?.id,
             scheduledDatetime: scheduledDatetime.toISOString(),
             patientDetails: data,
+            referralUrl: uploadedReferralUrl,
             notes: data.notes,
+            questionnaire,
         };
 
         try {
@@ -179,132 +191,187 @@ const AxisBookingForm = () => {
         }
     };
 
+    // --- RENDER STEPS ---
+    const ServiceSelector = () => (
+        <div className="max-w-2xl mx-auto">
+            <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold text-blue-900 mb-2">Book a Radiology Appointment</h1>
+                <p className="text-xl text-gray-600">Select your medical imaging scan</p>
+            </div>
+
+            <div className="space-y-6 bg-white p-8 rounded-lg shadow">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">What service do you need?</label>
+                    <div className="relative">
+                        <select
+                            className="w-full p-3 border border-gray-300 rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                            value={selectedService?.id || ''}
+                            onChange={(e) => {
+                                const service = services.find(s => s.id === e.target.value) || null;
+                                setSelectedService(service);
+                            }}
+                            disabled={isLoadingServices}
+                        >
+                            <option value="">{isLoadingServices ? "Loading..." : "Please select"}</option>
+                            {services.map(service => <option key={service.id} value={service.id}>{service.name}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                    </div>
+                </div>
+
+                {selectedService && selectedService.name !== 'DEXA / Bone Density' && (
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Which body part requires this service?</label>
+                        <div className="relative">
+                            <select
+                                className="w-full p-3 border border-gray-300 rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                                value={selectedBodyPart?.id || ''}
+                                onChange={(e) => {
+                                    const bodyPart = bodyParts.find(bp => bp.id === e.target.value) || null;
+                                    setSelectedBodyPart(bodyPart);
+                                }}
+                                disabled={isLoadingBodyParts}
+                            >
+                                <option value="">{isLoadingBodyParts ? "Loading..." : "Please select"}</option>
+                                {bodyParts.map(part => <option key={part.id} value={part.id}>{part.name}</option>)}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
+    const PreparationInfo = () => (
+        <div className="max-w-2xl mx-auto">
+            <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold text-blue-900 mb-2">Preparation Information</h1>
+                <p className="text-xl text-gray-600">{selectedService?.name} - {selectedBodyPart?.name}</p>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-lg p-8 mb-6 prose max-w-none">
+                {formatPreparationText(selectedBodyPart?.preparationText || null)}
+            </div>
+        </div>
+    );
+
+    const ServiceQuestionnaire = () => (
+        <div className="max-w-2xl mx-auto">
+            <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold text-blue-900 mb-2">Service Questionnaire</h1>
+                <p className="text-xl text-gray-600">Please answer the following questions</p>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-lg p-8 mb-6 space-y-6">
+                <div>
+                    <p className="font-medium text-gray-800">1. Do you have any presence of kidney disease?</p>
+                    <div className="flex gap-4 mt-2">
+                        <label className="flex items-center gap-2"><input type="radio" name="kidneyDisease" value="yes" onChange={handleQuestionnaireChange} className="form-radio" /> Yes</label>
+                        <label className="flex items-center gap-2"><input type="radio" name="kidneyDisease" value="no" onChange={handleQuestionnaireChange} className="form-radio" /> No</label>
+                    </div>
+                </div>
+                <div>
+                    <p className="font-medium text-gray-800">2. Are you diabetic?</p>
+                    <div className="flex gap-4 mt-2">
+                        <label className="flex items-center gap-2"><input type="radio" name="diabetic" value="yes" onChange={handleQuestionnaireChange} className="form-radio" /> Yes</label>
+                        <label className="flex items-center gap-2"><input type="radio" name="diabetic" value="no" onChange={handleQuestionnaireChange} className="form-radio" /> No</label>
+                    </div>
+                </div>
+                <div>
+                    <p className="font-medium text-gray-800">3. Are you currently taking Metformin?</p>
+                    <div className="flex gap-4 mt-2">
+                        <label className="flex items-center gap-2"><input type="radio" name="metformin" value="yes" onChange={handleQuestionnaireChange} className="form-radio" /> Yes</label>
+                        <label className="flex items-center gap-2"><input type="radio" name="metformin" value="no" onChange={handleQuestionnaireChange} className="form-radio" /> No</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    const DateTimeSelector = () => (
+        <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold text-blue-900 mb-2">Select a date and time</h1>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8 bg-white rounded-lg shadow">
+                <Calendar
+                    mode="single"
+                    selected={selectedDate ? parseISO(selectedDate) : undefined}
+                    onSelect={(date: Date | undefined) => setSelectedDate(date ? format(date, 'yyyy-MM-dd') : '')}
+                    disabled={(date: Date) => !availability.some(slot => slot.date === format(date, 'yyyy-MM-dd')) || date < new Date()}
+                />
+                <div className="grid grid-cols-3 gap-2 h-fit">
+                    {daySlots.map((slot) => (
+                        <Button key={slot.time} variant={selectedTime === slot.time ? 'default' : 'outline'} onClick={() => setSelectedTime(slot.time)} disabled={!slot.available}>
+                            {slot.time}
+                        </Button>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+
+    const PatientDetails = () => (
+        <div className="max-w-2xl mx-auto">
+            <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold text-blue-900 mb-2">Your Details</h1>
+                <p className="text-gray-600">If you are booking on behalf of someone else, please enter their details here.</p>
+            </div>
+            <div className="bg-white p-8 rounded-lg shadow-md">
+                <PatientDetailsForm
+                    onSubmit={handleBookingSubmit}
+                    isSubmitting={isSubmitting}
+                    referralFile={referralFile}
+                    onFileSelect={setReferralFile}
+                />
+            </div>
+        </div>
+    );
+
+    // --- MAIN RENDER ---
+    const totalSteps = 5;
+    const isContinueDisabled = () => {
+        if (currentStep === 1) return !selectedService || (selectedService.name !== 'DEXA / Bone Density' && !selectedBodyPart);
+        if (currentStep === 2) return false; // Always allow to continue past prep info
+        if (currentStep === 3) return Object.values(questionnaire).some(v => v === '');
+        if (currentStep === 4) return !selectedDate || !selectedTime;
+        return true;
+    };
+
     return (
-        <div className="flex flex-col min-h-screen bg-gray-50">
-            <header className="sticky top-0 bg-white shadow-sm z-10">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+        <div className="min-h-screen bg-gray-100 font-sans">
+            <header className="bg-white shadow-sm sticky top-0 z-20">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <h1 className="text-2xl font-bold text-blue-900">Axis Imaging</h1>
-                    {/* Placeholder for a return link if needed */}
                 </div>
             </header>
 
-            <main className="flex-grow">
-                <div className="max-w-4xl mx-auto p-4 sm:p-8">
-                    <div className="text-center mb-10">
-                        <h2 className="text-3xl sm:text-4xl font-bold text-gray-800">Book a Radiology Appointment</h2>
-                        <p className="text-lg text-gray-600 mt-2">Select your medical imaging scan</p>
+            <main className="py-10">
+                <div className="max-w-4xl mx-auto px-4">
+                    <div className="w-full bg-gray-200 rounded-full h-2 mb-8">
+                        <div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{ width: `${(currentStep / totalSteps) * 100}%` }} />
                     </div>
 
-                    {currentStep === 1 && (
-                        <div className="bg-white p-8 rounded-lg shadow-md space-y-6">
-                            <div className="space-y-2">
-                                <Label className="text-lg font-medium">What service do you need?</Label>
-                                <Select onValueChange={(serviceId) => {
-                                    const service = services.find(s => s.id === serviceId) || null;
-                                    setSelectedService(service);
-                                    setSelectedBodyPart(null);
-                                }} value={selectedService?.id || ''} disabled={isLoadingServices}>
-                                    <SelectTrigger className="py-6 text-lg">
-                                        <SelectValue placeholder={isLoadingServices ? "Loading..." : "Please select"} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {services.map(service => <SelectItem key={service.id} value={service.id} className="text-lg">{service.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                    {currentStep === 1 && <ServiceSelector />}
+                    {currentStep === 2 && <PreparationInfo />}
+                    {currentStep === 3 && <ServiceQuestionnaire />}
+                    {currentStep === 4 && <DateTimeSelector />}
+                    {currentStep === 5 && <PatientDetails />}
 
-                            {selectedService && selectedService.name !== 'DEXA / Bone Density' && (
-                                <div className="space-y-2">
-                                    <Label className="text-lg font-medium">Which body part requires this service?</Label>
-                                    <Select onValueChange={(bodyPartId) => {
-                                        const part = bodyParts.find(p => p.id === bodyPartId) || null;
-                                        setSelectedBodyPart(part);
-                                    }} value={selectedBodyPart?.id || ''} disabled={isLoadingBodyParts}>
-                                        <SelectTrigger className="py-6 text-lg">
-                                            <SelectValue placeholder={isLoadingBodyParts ? "Loading..." : "Please select"} />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {bodyParts.map(part => <SelectItem key={part.id} value={part.id} className="text-lg">{part.name}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            )}
-                            <Accordion type="single" collapsible className="w-full">
-                                <AccordionItem value="item-1">
-                                    <AccordionTrigger>What if I can&apos;t find my scan in the service list?</AccordionTrigger>
-                                    <AccordionContent>
-                                        If you can&apos;t find your scan in the service list or are uncertain, please contact us directly to discuss your specific requirements.
-                                    </AccordionContent>
-                                </AccordionItem>
-                            </Accordion>
-                        </div>
-                    )}
-
-                    {currentStep === 2 && (
-                        <div>
-                            <h2 className="text-xl font-semibold mb-4">Select Date and Time</h2>
-                            {isLoadingAvailability ? (
-                                <p>Loading availability...</p>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <Calendar
-                                        mode="single"
-                                        selected={selectedDate ? parseISO(selectedDate) : undefined}
-                                        onSelect={(date) => setSelectedDate(date ? format(date, 'yyyy-MM-dd') : '')}
-                                        disabled={(date) => !availability.some(slot => slot.date === format(date, 'yyyy-MM-dd')) || (date ? date < new Date() : false)}
-                                    />
-                                    <div className="grid grid-cols-3 gap-2 h-fit">
-                                        {daySlots.map((slot) => (
-                                            <Button
-                                                key={slot.time}
-                                                variant={selectedTime === slot.time ? 'default' : 'outline'}
-                                                onClick={() => setSelectedTime(slot.time)}
-                                                disabled={!slot.available}
-                                            >
-                                                {slot.time}
-                                            </Button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {currentStep === 3 && (
-                        <div className="bg-white p-8 rounded-lg shadow-md">
-                            <PatientDetailsForm onSubmit={handlePatientDetailsSubmit} isSubmitting={isSubmitting} />
-                        </div>
-                    )}
-
-                    {currentStep === 4 && bookingConfirmation && (
-                        <div className="mt-8 p-6 bg-green-50 border border-green-200 rounded text-center">
-                            <h2 className="text-2xl font-semibold mb-2">Booking Confirmed!</h2>
-                            <p className="text-gray-700">Thank you for booking with Axis Imaging.</p>
-                            <div className="mt-4 text-left bg-white p-4 rounded-lg border">
-                                <p><strong>Booking Reference:</strong> <span className="font-mono">{bookingConfirmation.bookingId}</span></p>
-                                <p><strong>Scheduled for:</strong> <span className="font-mono">{new Date(bookingConfirmation.scheduledDatetime).toLocaleString()}</span></p>
-                                <p><strong>Status:</strong> <span className="font-mono capitalize">{bookingConfirmation.status}</span></p>
-                                {bookingConfirmation.voyagerId && (
-                                    <p><strong>Voyager ID:</strong> <span className="font-mono">{bookingConfirmation.voyagerId}</span></p>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="mt-8 flex justify-end">
-                        {currentStep < 3 && (
-                            <Button onClick={handleNextStep} disabled={!isStepComplete(currentStep)} size="lg" className="text-lg py-7 px-8">
+                    <div className="flex justify-between mt-10">
+                        <Button variant="outline" onClick={handlePrevStep} disabled={currentStep === 1 || isSubmitting}>
+                            <ArrowLeft className="mr-2 h-5 w-5" /> Back
+                        </Button>
+                        {currentStep < totalSteps && (
+                            <Button onClick={handleNextStep} disabled={isContinueDisabled() || isSubmitting} size="lg">
                                 Continue <ArrowRight className="ml-2 h-5 w-5" />
                             </Button>
                         )}
-                        {currentStep === 3 && (
-                            <Button form="patient-details-form" type="submit" disabled={isSubmitting} size="lg" className="text-lg py-7 px-8">
+                        {currentStep === totalSteps && (
+                            <Button form="patient-details-form" type="submit" disabled={isSubmitting || !referralFile} size="lg">
                                 {isSubmitting ? 'Submitting...' : 'Submit Booking'}
                             </Button>
                         )}
                     </div>
-
-                    {submissionError && <p className="text-red-500 mt-4 text-center">{submissionError}</p>}
                 </div>
             </main>
         </div>

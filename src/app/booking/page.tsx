@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ArrowLeft, ArrowRight } from 'lucide-react';
+import { ChevronDown, ArrowLeft, ArrowRight, MapPin, CalendarDays } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { PatientDetailsForm } from '@/components/ui/patient-details-form';
 import { PatientDetailsForm as PatientDetailsFormData } from '@/lib/validations/booking';
@@ -260,24 +260,48 @@ const AxisBookingForm = () => {
             </div>
             <div className="bg-white border border-gray-200 rounded-lg p-8 mb-6 space-y-6">
                 <div>
-                    <p className="font-medium text-gray-800">1. Do you have any presence of kidney disease?</p>
-                    <div className="flex gap-4 mt-2">
-                        <label className="flex items-center gap-2"><input type="radio" name="kidneyDisease" value="yes" onChange={handleQuestionnaireChange} className="form-radio" /> Yes</label>
-                        <label className="flex items-center gap-2"><input type="radio" name="kidneyDisease" value="no" onChange={handleQuestionnaireChange} className="form-radio" /> No</label>
+                    <p className="font-medium text-gray-800 mb-3">1. Do you have any presence of kidney disease?</p>
+                    <div className="flex gap-6">
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="kidneyDisease" value="yes" checked={questionnaire.kidneyDisease === 'yes'} onChange={handleQuestionnaireChange} className="sr-only peer" />
+                            <span className="w-5 h-5 rounded-full border-2 border-gray-300 grid place-items-center peer-checked:border-blue-600"><span className="w-2.5 h-2.5 rounded-full bg-blue-600 invisible peer-checked:visible"></span></span>
+                            <span>Yes</span>
+                        </label>
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="kidneyDisease" value="no" checked={questionnaire.kidneyDisease === 'no'} onChange={handleQuestionnaireChange} className="sr-only peer" />
+                            <span className="w-5 h-5 rounded-full border-2 border-gray-300 grid place-items-center peer-checked:border-blue-600"><span className="w-2.5 h-2.5 rounded-full bg-blue-600 invisible peer-checked:visible"></span></span>
+                            <span>No</span>
+                        </label>
                     </div>
                 </div>
                 <div>
-                    <p className="font-medium text-gray-800">2. Are you diabetic?</p>
-                    <div className="flex gap-4 mt-2">
-                        <label className="flex items-center gap-2"><input type="radio" name="diabetic" value="yes" onChange={handleQuestionnaireChange} className="form-radio" /> Yes</label>
-                        <label className="flex items-center gap-2"><input type="radio" name="diabetic" value="no" onChange={handleQuestionnaireChange} className="form-radio" /> No</label>
+                    <p className="font-medium text-gray-800 mb-3">2. Are you diabetic?</p>
+                    <div className="flex gap-6">
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="diabetic" value="yes" checked={questionnaire.diabetic === 'yes'} onChange={handleQuestionnaireChange} className="sr-only peer" />
+                            <span className="w-5 h-5 rounded-full border-2 border-gray-300 grid place-items-center peer-checked:border-blue-600"><span className="w-2.5 h-2.5 rounded-full bg-blue-600 invisible peer-checked:visible"></span></span>
+                            <span>Yes</span>
+                        </label>
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="diabetic" value="no" checked={questionnaire.diabetic === 'no'} onChange={handleQuestionnaireChange} className="sr-only peer" />
+                            <span className="w-5 h-5 rounded-full border-2 border-gray-300 grid place-items-center peer-checked:border-blue-600"><span className="w-2.5 h-2.5 rounded-full bg-blue-600 invisible peer-checked:visible"></span></span>
+                            <span>No</span>
+                        </label>
                     </div>
                 </div>
                 <div>
-                    <p className="font-medium text-gray-800">3. Are you currently taking Metformin?</p>
-                    <div className="flex gap-4 mt-2">
-                        <label className="flex items-center gap-2"><input type="radio" name="metformin" value="yes" onChange={handleQuestionnaireChange} className="form-radio" /> Yes</label>
-                        <label className="flex items-center gap-2"><input type="radio" name="metformin" value="no" onChange={handleQuestionnaireChange} className="form-radio" /> No</label>
+                    <p className="font-medium text-gray-800 mb-3">3. Are you currently taking Metformin?</p>
+                    <div className="flex gap-6">
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="metformin" value="yes" checked={questionnaire.metformin === 'yes'} onChange={handleQuestionnaireChange} className="sr-only peer" />
+                            <span className="w-5 h-5 rounded-full border-2 border-gray-300 grid place-items-center peer-checked:border-blue-600"><span className="w-2.5 h-2.5 rounded-full bg-blue-600 invisible peer-checked:visible"></span></span>
+                            <span>Yes</span>
+                        </label>
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="metformin" value="no" checked={questionnaire.metformin === 'no'} onChange={handleQuestionnaireChange} className="sr-only peer" />
+                            <span className="w-5 h-5 rounded-full border-2 border-gray-300 grid place-items-center peer-checked:border-blue-600"><span className="w-2.5 h-2.5 rounded-full bg-blue-600 invisible peer-checked:visible"></span></span>
+                            <span>No</span>
+                        </label>
                     </div>
                 </div>
             </div>
@@ -288,22 +312,51 @@ const AxisBookingForm = () => {
         <div className="max-w-4xl mx-auto">
             <div className="text-center mb-8">
                 <h1 className="text-3xl font-bold text-blue-900 mb-2">Select a date and time</h1>
+                <p className="text-xl text-gray-600">Choose your preferred appointment slot</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8 bg-white rounded-lg shadow">
-                <Calendar
-                    mode="single"
-                    selected={selectedDate ? parseISO(selectedDate) : undefined}
-                    onSelect={(date: Date | undefined) => setSelectedDate(date ? format(date, 'yyyy-MM-dd') : '')}
-                    disabled={(date: Date) => !availability.some(slot => slot.date === format(date, 'yyyy-MM-dd')) || date < new Date()}
-                />
-                <div className="grid grid-cols-3 gap-2 h-fit">
-                    {isLoadingAvailability ? <p className="col-span-3 text-center">Loading times...</p> : daySlots.map((slot) => (
-                        <Button key={slot.time} variant={selectedTime === slot.time ? 'default' : 'outline'} onClick={() => setSelectedTime(slot.time)} disabled={!slot.available}>
-                            {slot.time}
-                        </Button>
-                    ))}
-                    {!isLoadingAvailability && daySlots.length === 0 && <p className="col-span-3 text-center text-gray-500">Please select an available date.</p>}
+
+            <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6 flex items-center justify-between shadow">
+                <div className="flex items-center">
+                    <MapPin className="text-blue-600 mr-2 h-5 w-5" />
+                    <span className="font-medium">Axis Imaging Mickleham</span>
                 </div>
+                <div className="flex items-center text-gray-600">
+                    <CalendarDays className="mr-2 h-5 w-5" />
+                    <span>{selectedService?.name} {selectedBodyPart ? `- ${selectedBodyPart.name}` : ''}</span>
+                </div>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6 shadow">
+                <h3 className="text-xl font-semibold text-blue-900 mb-4">Available Times</h3>
+                {isLoadingAvailability ? (
+                    <p>Loading available times...</p>
+                ) : availability.length > 0 ? (
+                    <div className="space-y-6">
+                        {availability.map(({ date, slots }) => (
+                            <div key={date}>
+                                <p className="font-medium text-gray-800 mb-3 text-lg">
+                                    {format(parseISO(date), 'EEEE, d MMMM yyyy')}
+                                </p>
+                                <div className="flex flex-wrap gap-3">
+                                    {slots.filter(s => s.available).map(({ time }) => (
+                                        <Button
+                                            key={time}
+                                            variant={selectedTime === time && selectedDate === date ? 'default' : 'outline'}
+                                            onClick={() => {
+                                                setSelectedDate(date);
+                                                setSelectedTime(time);
+                                            }}
+                                        >
+                                            {time}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p>No availability for the selected service. Please try another service or contact us.</p>
+                )}
             </div>
         </div>
     );

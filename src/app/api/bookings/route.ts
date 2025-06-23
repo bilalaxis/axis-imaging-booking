@@ -68,22 +68,16 @@ export async function POST(request: Request) {
             }
 
             // 4. Create appointment in our database
-            const appointmentData: any = {
-                patientId: patient.id,
-                serviceId: validatedData.serviceId,
-                scheduledDatetime,
-                status: 'pending',
-                notes: validatedData.notes || '',
-                referralUrl: validatedData.referralUrl || null,
-            }
-
-            // Only include bodyPartId if it's provided
-            if (validatedData.bodyPartId) {
-                appointmentData.bodyPartId = validatedData.bodyPartId
-            }
-
             const appointment = await tx.appointment.create({
-                data: appointmentData,
+                data: {
+                    patientId: patient.id,
+                    serviceId: validatedData.serviceId,
+                    ...(validatedData.bodyPartId && { bodyPartId: validatedData.bodyPartId }),
+                    scheduledDatetime,
+                    status: 'pending',
+                    notes: validatedData.notes || '',
+                    referralUrl: validatedData.referralUrl || null,
+                } as any,
                 include: {
                     patient: true,
                     service: true,

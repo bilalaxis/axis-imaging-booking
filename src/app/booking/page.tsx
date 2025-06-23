@@ -34,6 +34,7 @@ const AxisBookingForm = () => {
     const [availability, setAvailability] = useState<AvailabilitySlot[]>([]);
     const [selectedTime, setSelectedTime] = useState<string>('');
     const [selectedDate, setSelectedDate] = useState<string>('');
+    const [daySlots, setDaySlots] = useState<{ time: string; available: boolean }[]>([]);
 
     // Loading states
     const [isLoadingServices, setIsLoadingServices] = useState(true);
@@ -108,6 +109,11 @@ const AxisBookingForm = () => {
         };
         fetchAvailability();
     }, [selectedService]);
+
+    useEffect(() => {
+        const slots = availability.find(day => day.date === selectedDate)?.slots || [];
+        setDaySlots(slots);
+    }, [selectedDate, availability]);
 
     const handleNextStep = () => {
         if (isStepComplete(currentStep)) {
@@ -225,7 +231,6 @@ const AxisBookingForm = () => {
             )}
 
             {currentStep === 2 && (() => {
-                const daySlots = selectedDate ? availability.find(day => day.date === selectedDate)?.slots : [];
                 return (
                     <div>
                         <h2 className="text-xl font-semibold mb-4">Select Date and Time</h2>
@@ -240,7 +245,7 @@ const AxisBookingForm = () => {
                                     disabled={(date) => !availability.some(slot => slot.date === format(date, 'yyyy-MM-dd')) || (date ? date < new Date() : false)}
                                 />
                                 <div className="grid grid-cols-3 gap-2 h-fit">
-                                    {daySlots && daySlots.map((slot) => (
+                                    {daySlots.map((slot) => (
                                         <Button
                                             key={slot.time}
                                             variant={selectedTime === slot.time ? 'default' : 'outline'}

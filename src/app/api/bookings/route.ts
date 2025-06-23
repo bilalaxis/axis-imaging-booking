@@ -96,7 +96,7 @@ export async function POST(request: Request) {
                         firstName: patient.firstName,
                         lastName: patient.lastName,
                         dateOfBirth: patient.dateOfBirth,
-                        email: patient.email
+                        email: patient.email ?? ""
                     },
                     service: {
                         name: service.name

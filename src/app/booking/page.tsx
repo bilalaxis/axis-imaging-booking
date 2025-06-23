@@ -53,9 +53,10 @@ const AxisBookingForm = () => {
                 const response = await fetch('/api/services');
                 if (!response.ok) throw new Error('Failed to fetch services');
                 const data = await response.json();
-                setServices(data.services);
+                setServices(data.services || []);
             } catch (error) {
                 console.error("Error fetching services:", error);
+                setServices([]);
             } finally {
                 setIsLoadingServices(false);
             }
@@ -73,9 +74,11 @@ const AxisBookingForm = () => {
             try {
                 const response = await fetch(`/api/services/${selectedService.id}/body-parts`);
                 if (!response.ok) throw new Error('Failed to fetch body parts');
-                setBodyParts(await response.json());
+                const data = await response.json();
+                setBodyParts(Array.isArray(data) ? data : []);
             } catch (error) {
                 console.error("Error fetching body parts:", error);
+                setBodyParts([]);
             } finally {
                 setIsLoadingBodyParts(false);
             }
@@ -100,9 +103,10 @@ const AxisBookingForm = () => {
                 const response = await fetch(`/api/availability?service_id=${selectedService.id}`);
                 if (!response.ok) throw new Error('Failed to fetch availability');
                 const data = await response.json();
-                setAvailability(data.availability);
+                setAvailability(data.availability || []);
             } catch (error) {
                 console.error("Error fetching availability:", error);
+                setAvailability([]);
             } finally {
                 setIsLoadingAvailability(false);
             }

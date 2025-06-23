@@ -55,25 +55,35 @@ export async function POST(request: Request) {
                 throw new Error('Service not found')
             }
 
-            const bodyPart = await tx.bodyPart.findUnique({
-                where: { id: validatedData.bodyPartId }
-            })
+            // Only look up body part if bodyPartId is provided (not for DEXA scans)
+            let bodyPart = null
+            if (validatedData.bodyPartId) {
+                bodyPart = await tx.bodyPart.findUnique({
+                    where: { id: validatedData.bodyPartId }
+                })
 
-            if (!bodyPart) {
-                throw new Error('Body part not found')
+                if (!bodyPart) {
+                    throw new Error('Body part not found')
+                }
             }
 
             // 4. Create appointment in our database
+            const appointmentData: any = {
+                patientId: patient.id,
+                serviceId: validatedData.serviceId,
+                scheduledDatetime,
+                status: 'pending',
+                notes: validatedData.notes || '',
+                referralUrl: validatedData.referralUrl || null,
+            }
+
+            // Only include bodyPartId if it's provided
+            if (validatedData.bodyPartId) {
+                appointmentData.bodyPartId = validatedData.bodyPartId
+            }
+
             const appointment = await tx.appointment.create({
-                data: {
-                    patientId: patient.id,
-                    serviceId: validatedData.serviceId,
-                    bodyPartId: validatedData.bodyPartId,
-                    scheduledDatetime,
-                    status: 'pending',
-                    notes: validatedData.notes || '',
-                    referralUrl: validatedData.referralUrl || null,
-                },
+                data: appointmentData,
                 include: {
                     patient: true,
                     service: true,
@@ -102,7 +112,7 @@ export async function POST(request: Request) {
                         name: service.name
                     },
                     bodyPart: {
-                        name: bodyPart.name
+                        name: bodyPart?.name || ''
                     }
                 })
 

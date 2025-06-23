@@ -62,7 +62,7 @@ model Appointment {
   voyagerAppointmentId String?   @unique @map("voyager_appointment_id") @db.VarChar(50)
   patientId          String     @map("patient_id")
   serviceId          String     @map("service_id")
-  bodyPartId         String     @map("body_part_id")
+  bodyPartId         String?    @map("body_part_id")
   scheduledDatetime  DateTime   @map("scheduled_datetime")
   status             String     @default("pending") @db.VarChar(20) // 'pending', 'confirmed', 'cancelled'
   referralUrl        String?    @map("referral_url") @db.VarChar(500)
@@ -73,7 +73,7 @@ model Appointment {
 
   patient  Patient  @relation(fields: [patientId], references: [id])
   service  Service  @relation(fields: [serviceId], references: [id])
-  bodyPart BodyPart @relation(fields: [bodyPartId], references: [id])
+  bodyPart BodyPart? @relation(fields: [bodyPartId], references: [id])
 
   @@map("appointments")
 }

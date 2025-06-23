@@ -5,7 +5,6 @@ import { ChevronDown, ArrowLeft, ArrowRight, MapPin, CalendarDays } from 'lucide
 import { format, parseISO } from 'date-fns';
 import { PatientDetailsForm } from '@/components/ui/patient-details-form';
 import { PatientDetailsForm as PatientDetailsFormData } from '@/lib/validations/booking';
-import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 
 // Type definitions
@@ -36,7 +35,6 @@ const AxisBookingForm = () => {
     const [availability, setAvailability] = useState<AvailabilitySlot[]>([]);
     const [selectedTime, setSelectedTime] = useState<string>('');
     const [selectedDate, setSelectedDate] = useState<string>('');
-    const [daySlots, setDaySlots] = useState<{ time: string; available: boolean }[]>([]);
     const [questionnaire, setQuestionnaire] = useState({ kidneyDisease: '', diabetic: '', metformin: '' });
 
     // Loading states
@@ -112,11 +110,6 @@ const AxisBookingForm = () => {
         };
         fetchAvailability();
     }, [selectedService]);
-
-    useEffect(() => {
-        const slots = availability.find(day => day.date === selectedDate)?.slots || [];
-        setDaySlots(slots);
-    }, [selectedDate, availability]);
 
     const handleNextStep = () => setCurrentStep(currentStep + 1);
     const handlePrevStep = () => setCurrentStep(currentStep - 1);

@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ArrowLeft, ArrowRight, Upload } from 'lucide-react';
+import { ChevronDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -182,8 +182,8 @@ const AxisBookingForm = () => {
                 throw new Error(errorData.error || 'Booking failed');
             }
             const result = await response.json();
-            setBookingConfirmation(result.appointment);
-            setCurrentStep(4);
+            setBookingConfirmation(result);
+            handleNextStep();
         } catch (error) {
             setSubmissionError(error instanceof Error ? error.message : 'An unknown error occurred.');
         } finally {
@@ -300,11 +300,12 @@ const AxisBookingForm = () => {
                     disabled={(date: Date) => !availability.some(slot => slot.date === format(date, 'yyyy-MM-dd')) || date < new Date()}
                 />
                 <div className="grid grid-cols-3 gap-2 h-fit">
-                    {daySlots.map((slot) => (
+                    {isLoadingAvailability ? <p className="col-span-3 text-center">Loading times...</p> : daySlots.map((slot) => (
                         <Button key={slot.time} variant={selectedTime === slot.time ? 'default' : 'outline'} onClick={() => setSelectedTime(slot.time)} disabled={!slot.available}>
                             {slot.time}
                         </Button>
                     ))}
+                    {!isLoadingAvailability && daySlots.length === 0 && <p className="col-span-3 text-center text-gray-500">Please select an available date.</p>}
                 </div>
             </div>
         </div>
@@ -327,8 +328,40 @@ const AxisBookingForm = () => {
         </div>
     );
 
+    const ConfirmationStep = () => (
+        <div className="max-w-2xl mx-auto text-center">
+            <div className="mb-8">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+                <h1 className="text-3xl font-bold text-blue-900 mb-2">Booking Request Submitted</h1>
+                <p className="text-gray-600">We&apos;ll contact you within 24 hours to confirm your appointment</p>
+            </div>
+
+            {bookingConfirmation && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                    <h3 className="font-semibold text-blue-900 mb-4">Appointment Summary</h3>
+                    <div className="text-left space-y-2">
+                        <p><span className="font-medium">Service:</span> {selectedService?.name}</p>
+                        <p><span className="font-medium">Body Part:</span> {selectedBodyPart?.name || 'N/A'}</p>
+                        <p><span className="font-medium">Preferred Time:</span> {format(parseISO(bookingConfirmation.scheduledDatetime), 'EEEE, d MMMM yyyy')} at {format(parseISO(bookingConfirmation.scheduledDatetime), 'p')}</p>
+                        <p><span className="font-medium">Location:</span> Axis Imaging Mickleham</p>
+                        <p><span className="font-medium">Duration:</span> Approximately {selectedService?.durationMinutes} minutes</p>
+                    </div>
+                </div>
+            )}
+
+            <div className="text-sm text-gray-600">
+                <p>Reference: {bookingConfirmation?.bookingId}</p>
+                <p className="mt-2">A confirmation email has been sent to your email address.</p>
+            </div>
+        </div>
+    );
+
     // --- MAIN RENDER ---
-    const totalSteps = 5;
+    const totalSteps = 6;
     const isContinueDisabled = () => {
         if (currentStep === 1) return !selectedService || (selectedService.name !== 'DEXA / Bone Density' && !selectedBodyPart);
         if (currentStep === 2) return false; // Always allow to continue past prep info
@@ -336,6 +369,10 @@ const AxisBookingForm = () => {
         if (currentStep === 4) return !selectedDate || !selectedTime;
         return true;
     };
+
+    if (currentStep > totalSteps) {
+        return <ConfirmationStep />;
+    }
 
     return (
         <div className="min-h-screen bg-gray-100 font-sans">
@@ -356,22 +393,26 @@ const AxisBookingForm = () => {
                     {currentStep === 3 && <ServiceQuestionnaire />}
                     {currentStep === 4 && <DateTimeSelector />}
                     {currentStep === 5 && <PatientDetails />}
+                    {currentStep === 6 && <ConfirmationStep />}
 
                     <div className="flex justify-between mt-10">
-                        <Button variant="outline" onClick={handlePrevStep} disabled={currentStep === 1 || isSubmitting}>
-                            <ArrowLeft className="mr-2 h-5 w-5" /> Back
-                        </Button>
-                        {currentStep < totalSteps && (
+                        {currentStep < totalSteps ? (
+                            <Button variant="outline" onClick={handlePrevStep} disabled={currentStep === 1 || isSubmitting}>
+                                <ArrowLeft className="mr-2 h-5 w-5" /> Back
+                            </Button>
+                        ) : <div />}
+                        {currentStep < totalSteps - 1 && (
                             <Button onClick={handleNextStep} disabled={isContinueDisabled() || isSubmitting} size="lg">
                                 Continue <ArrowRight className="ml-2 h-5 w-5" />
                             </Button>
                         )}
-                        {currentStep === totalSteps && (
+                        {currentStep === totalSteps - 1 && (
                             <Button form="patient-details-form" type="submit" disabled={isSubmitting || !referralFile} size="lg">
                                 {isSubmitting ? 'Submitting...' : 'Submit Booking'}
                             </Button>
                         )}
                     </div>
+                    {submissionError && <p className="text-red-500 mt-4 text-center">{submissionError}</p>}
                 </div>
             </main>
         </div>

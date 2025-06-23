@@ -56,100 +56,87 @@ async function main() {
 
     console.log('✅ Created services')
 
-    // Create body parts for each service
-    const bodyParts = await Promise.all([
-        // X-Ray body parts
-        prisma.bodyPart.create({
-            data: {
-                name: 'Chest',
-                serviceId: services[0].id,
-                preparationText: 'Remove all jewelry and metal objects. Wear loose clothing.',
-            },
-        }),
-        prisma.bodyPart.create({
-            data: {
-                name: 'Spine',
-                serviceId: services[0].id,
-                preparationText: 'Remove all jewelry and metal objects. Wear loose clothing.',
-            },
-        }),
-        prisma.bodyPart.create({
-            data: {
-                name: 'Extremities',
-                serviceId: services[0].id,
-                preparationText: 'Remove all jewelry and metal objects. Wear loose clothing.',
-            },
-        }),
+    // Find the specific services to add body parts to
+    const xrayService = services.find(s => s.code === 'XR')
+    const ctService = services.find(s => s.code === 'CT')
+    const mriService = services.find(s => s.code === 'MRI')
+    const ultrasoundService = services.find(s => s.code === 'US')
 
-        // CT Scan body parts
-        prisma.bodyPart.create({
-            data: {
-                name: 'Chest',
-                serviceId: services[1].id,
-                preparationText: 'Fast for 4 hours before the scan. Remove all jewelry and metal objects.',
-            },
-        }),
-        prisma.bodyPart.create({
-            data: {
-                name: 'Abdomen',
-                serviceId: services[1].id,
-                preparationText: 'Fast for 6 hours before the scan. Drink contrast material if prescribed.',
-            },
-        }),
-        prisma.bodyPart.create({
-            data: {
-                name: 'Head',
-                serviceId: services[1].id,
-                preparationText: 'Remove all jewelry and metal objects. No special preparation required.',
-            },
-        }),
+    if (!xrayService || !ctService || !mriService || !ultrasoundService) {
+        throw new Error('Could not find all required services in the seed data.')
+    }
 
-        // MRI body parts
-        prisma.bodyPart.create({
-            data: {
-                name: 'Brain',
-                serviceId: services[2].id,
-                preparationText: 'Remove all metal objects. No food restrictions. Inform staff of any implants.',
-            },
-        }),
-        prisma.bodyPart.create({
-            data: {
-                name: 'Spine',
-                serviceId: services[2].id,
-                preparationText: 'Remove all metal objects. No food restrictions. Inform staff of any implants.',
-            },
-        }),
-        prisma.bodyPart.create({
-            data: {
-                name: 'Joints',
-                serviceId: services[2].id,
-                preparationText: 'Remove all metal objects. No food restrictions. Inform staff of any implants.',
-            },
-        }),
+    // --- Body Part Seeding ---
 
-        // Ultrasound body parts
-        prisma.bodyPart.create({
-            data: {
-                name: 'Abdomen',
-                serviceId: services[3].id,
-                preparationText: 'Fast for 6 hours before the scan. Drink plenty of water.',
-            },
-        }),
-        prisma.bodyPart.create({
-            data: {
-                name: 'Pelvis',
-                serviceId: services[3].id,
-                preparationText: 'Drink plenty of water 1 hour before the scan. Have a full bladder.',
-            },
-        }),
-        prisma.bodyPart.create({
-            data: {
-                name: 'Thyroid',
-                serviceId: services[3].id,
-                preparationText: 'No special preparation required.',
-            },
-        }),
-    ])
+    // X-Ray Body Parts from I-MED list
+    const xrayBodyPartNames = [
+        "Abdomen", "Ankle (bilateral)", "Ankle (left)", "Ankle (right)", "Arm (left)", "Arm (right)",
+        "Chest", "Chest & ribs", "Chest ILO", "Chest ILO QLD Coal", "Elbow (left)", "Elbow (right)",
+        "Femur (left)", "Femur (right)", "Foot (bilateral)", "Foot (left)", "Foot (right)",
+        "Hand (left)", "Hand (right)", "Head", "Hip (bilateral)", "Hip (left)", "Hip (right)",
+        "Knee (bilateral)", "Knee (left)", "Knee (right)", "Long leg (left)", "Long leg (right)",
+        "Lower leg (left)", "Lower leg (right)", "Pelvis", "Shoulder (bilateral)", "Shoulder (right)", "Shoulder (left)",
+        "Spine (cervical)", "Spine (full)", "Spine (lumbar)", "Spine (thoracic)",
+        "Wrist (left)", "Wrist (right)"
+    ];
+
+    await prisma.bodyPart.createMany({
+        data: xrayBodyPartNames.map(name => ({
+            name,
+            serviceId: xrayService.id,
+            preparationText: "No specific preparation required, but please remove any jewelry or metal objects from the area being scanned.",
+        }))
+    });
+
+    // CT Scan Body Parts from I-MED list
+    const ctBodyPartNames = [
+        "Abdomen & pelvis", "Ankle/s", "Calcium Score", "Cardiac Angiogram", "Chest",
+        "Chest & abdomen & pelvis", "Chest ILO +HRCT", "Colonography", "Elbow/s", "Facial bones",
+        "Feet (one or both)", "Hand(s) / finger(s)", "Head", "Hip/s", "Knee/s", "Lower Abdomen",
+        "Lung cancer screening", "Pelvis", "Renal study - kidneys, urinary tract, bladder (KUB)",
+        "Shoulder/s", "Sinuses", "Soft tissue neck / thyroid", "SPECT", "Spine (cervical)",
+        "Spine (lumbosacral / lumbar)", "Spine (sacro-coccyx)", "Spine (thoracic)", "Wrist/s"
+    ];
+
+    await prisma.bodyPart.createMany({
+        data: ctBodyPartNames.map(name => ({
+            name,
+            serviceId: ctService.id,
+            preparationText: "Preparation can vary. Please consult with our staff when booking.",
+        }))
+    });
+
+    // MRI body parts (existing)
+    await prisma.bodyPart.createMany({
+        data: [
+            { name: 'Brain', serviceId: mriService.id, preparationText: 'Remove all metal objects. No food restrictions. Inform staff of any implants.' },
+            { name: 'Spine', serviceId: mriService.id, preparationText: 'Remove all metal objects. No food restrictions. Inform staff of any implants.' },
+            { name: 'Joints', serviceId: mriService.id, preparationText: 'Remove all metal objects. No food restrictions. Inform staff of any implants.' }
+        ]
+    })
+
+    // Ultrasound body parts from I-MED list
+    const ultrasoundBodyPartNames = [
+        "Ankle (bilateral)", "Ankle (left)", "Ankle (right)", "Arm veins / arteries (bilateral)",
+        "Arm veins / arteries (left)", "Arm veins / arteries (right)", "Breast (left)", "Breast (right)",
+        "Buttock / thigh", "Carotid artery (neck)", "Deep vein thrombosis (DVT) (arm/s)",
+        "Deep vein thrombosis (DVT) (leg/s)", "Elbow (left)", "Elbow (right)", "Foot (bilateral)",
+        "Foot (left)", "Foot (right)", "Hand / wrist (left)", "Hand / wrist (right)", "Head",
+        "Hip / groin (bilateral)", "Hip / groin (left)", "Hip / groin (right)", "Knee (bilateral)",
+        "Knee (left)", "Knee (right)", "Leg veins / arteries (bilateral)", "Leg veins / arteries (left)",
+        "Leg veins / arteries (right)", "Lower leg (left)", "Lower leg (right)", "Neck",
+        "Pregnancy 12-16 weeks", "Pregnancy 17-22 weeks", "Pregnancy 17-22 weeks (twins or more)",
+        "Pregnancy <12 weeks", "Pregnancy >22 weeks", "Pregnancy Nuchal / NT Scan",
+        "Shoulder (bilateral)", "Shoulder (left)", "Shoulder (right)", "Testes"
+    ];
+
+    await prisma.bodyPart.createMany({
+        data: ultrasoundBodyPartNames.map(name => ({
+            name,
+            serviceId: ultrasoundService.id,
+            preparationText: "Preparation instructions vary by exam. Please confirm requirements when booking.",
+        }))
+    });
 
     console.log('✅ Created body parts')
 

@@ -524,11 +524,6 @@ const AxisBookingForm = () => {
     );
 };
 
-export const metadata: Metadata = {
-    title: 'Axis Imaging - Booking',
-    description: 'Book a radiology appointment with Axis Imaging',
-};
-
 // Add these functions to fetch real data
 const fetchServices = async () => {
     const response = await fetch('/api/services');

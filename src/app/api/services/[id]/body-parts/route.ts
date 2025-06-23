@@ -3,12 +3,12 @@ import { prisma } from '@/lib/db/prisma'
 
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const serviceId = params.id
+        const { id } = await params
 
-        if (!serviceId) {
+        if (!id) {
             return NextResponse.json(
                 { error: 'Service ID is required' },
                 { status: 400 }
@@ -17,7 +17,7 @@ export async function GET(
 
         const bodyParts = await prisma.bodyPart.findMany({
             where: {
-                serviceId: serviceId,
+                serviceId: id,
                 active: true
             },
             orderBy: { name: 'asc' }
@@ -25,7 +25,7 @@ export async function GET(
 
         return NextResponse.json(bodyParts)
     } catch (error) {
-        console.error(`Error fetching body parts for service ${params.id}:`, error)
+        console.error(`Error fetching body parts for service:`, error)
         return NextResponse.json(
             { error: 'Failed to fetch body parts' },
             { status: 500 }
